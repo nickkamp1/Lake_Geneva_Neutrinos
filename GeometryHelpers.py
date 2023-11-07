@@ -33,7 +33,7 @@ class Circle:
         new_r = np.linalg.norm(new_point - self.center)
         return elev,new_point
     
-    def tangent_line(self,x,crossing):
+    def tangent_line(self,x,crossing=None):
         # find tangent to circle at point x
         # assume x is actually on the circle
         # use derivative of sphere and plane equation to calculate direction
@@ -42,6 +42,7 @@ class Circle:
         dydx = -self.n[2]/self.n[1] * dzdx - self.n[0]/self.n[1]
         dir = np.array([1,dydx,dzdx])
         unit_dir = -dir/np.linalg.norm(dir)
+        if crossing is None: return unit_dir
         if crossing[0] == 0: # vertical case
             rotation_axis = x - self.center
         elif crossing[0] == 1: # horizontal case:
@@ -64,7 +65,7 @@ def plot_tangent_line(circle,x,crossing,limit=10000,Lake_Crossings=None,label=No
         trange = np.linspace(limit[0],limit[1],2*1000)
     else: 
         trange = np.linspace(-limit,limit,2*1000)
-    dir = dir0 #only consider non-crossed beam for now
+    dir = dir0 #only consider unshifted beam for now
     points = x.reshape(-1,1) + np.outer(dir,trange)
     FASER_envelope = np.abs(0.125/480*trange)
     earth_points = np.array([xyz_to_lat_long(*p) for p in points.transpose()])
@@ -95,6 +96,33 @@ def plot_tangent_line(circle,x,crossing,limit=10000,Lake_Crossings=None,label=No
     axs[0].set_ylabel('Latitude [deg]')
     axs[1].set_ylabel('Longitude [deg]')
     axs[2].set_ylabel('Elevation w.r.t. Lake [m]')
+
+def plot_crossing_angle_impact(circle,x,crossing_angle,limit=10000,Lake_Crossings=None,label=None):
+    fig = plt.figure(figsize=(6,4))
+    dir = circle.tangent_line(x)
+    if(type(limit)==list):
+        trange = np.linspace(limit[0],limit[1],2*1000)
+    else: 
+        trange = np.linspace(-limit,limit,2*1000)
+    points = x.reshape(-1,1) + np.outer(dir,trange)
+    earth_points = np.array([xyz_to_lat_long(*p) for p in points.transpose()])
+    displacement = np.tan(crossing_angle) * trange
+    plt.plot(trange,displacement,color='black',label=label)
+
+    # Plot lake crossings:
+    pairs  = [[Lake_Crossings[i],Lake_Crossings[i+1]] for i in range(0,len(Lake_Crossings),2)]
+    for i,pair in enumerate(pairs):
+        diffs = (np.linalg.norm(np.array(pair[0])[None,:] - earth_points[:,0:2],axis=1),
+                 np.linalg.norm(np.array(pair[1])[None,:] - earth_points[:,0:2],axis=1))
+        
+        t_intersects = (trange[np.argmin(diffs[0])],
+                        trange[np.argmin(diffs[1])])
+        plt.axvspan(t_intersects[0],t_intersects[1],color='blue',alpha=0.2,label='Lake Geneva' if i==0 else None)
+
+    plt.legend()
+    plt.xlabel('Distance from interaction Point [m]')
+    plt.ylabel('Displacement from Crossing Angle [m]')
+
 
 
 
