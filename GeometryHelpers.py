@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation
 import shapely.geometry
 
+
 R_earth = 6371000.
 Lake_geneva_elevation = 372.
 
@@ -32,7 +33,7 @@ class Circle:
         new_r = np.linalg.norm(new_point - self.center)
         return elev,new_point
     
-    def tangent_line(self,x):
+    def tangent_line(self,x,crossing):
         # find tangent to circle at point x
         # assume x is actually on the circle
         # use derivative of sphere and plane equation to calculate direction
@@ -40,16 +41,30 @@ class Circle:
         dzdx = ((self.n[0]/self.n[1]) * delta[1] - delta[0]) / (delta[2] - self.n[2]/self.n[1] * delta[1])
         dydx = -self.n[2]/self.n[1] * dzdx - self.n[0]/self.n[1]
         dir = np.array([1,dydx,dzdx])
-        return -dir/np.linalg.norm(dir)
+        unit_dir = -dir/np.linalg.norm(dir)
+        if crossing[0] == 0: # vertical case
+            rotation_axis = x - self.center
+        elif crossing[0] == 1: # horizontal case:
+            rotation_axis = np.cross(dir,x-self.center)
+        else:
+            return unit_dir, None, None # no crossing angle defined
+        rotation_axis /= np.linalg.norm(rotation_axis)
+        rot1 = Rotation.from_mrp(np.tan(crossing[1]/8.)*rotation_axis) # uses modified rodrigues parameters
+        rot2 = Rotation.from_mrp(np.tan(-crossing[1]/8.)*rotation_axis) # uses modified rodrigues parameters
+        return unit_dir, np.matmul(rot1.as_matrix(),unit_dir), np.matmul(rot2.as_matrix(),unit_dir)
         
 
-def plot_tangent_line(circle,x,limit=10000,Lake_Crossings=None,label=None):
+def plot_tangent_line(circle,x,crossing,limit=10000,Lake_Crossings=None,label=None):
     
     fig, axs = plt.subplots(3,sharex=True)
     fig.set_size_inches(8,10)
     axs[2].set_xlabel('Distance from interaction Point [m]')
-    dir = circle.tangent_line(x)
-    trange = np.linspace(-limit,limit,2*1000)
+    dir0,dir1,dir2 = circle.tangent_line(x,crossing)
+    if(type(limit)==list):
+        trange = np.linspace(limit[0],limit[1],2*1000)
+    else: 
+        trange = np.linspace(-limit,limit,2*1000)
+    dir = dir0 #only consider non-crossed beam for now
     points = x.reshape(-1,1) + np.outer(dir,trange)
     FASER_envelope = np.abs(0.125/480*trange)
     earth_points = np.array([xyz_to_lat_long(*p) for p in points.transpose()])
@@ -123,19 +138,23 @@ def find_circle_center(A,B,C):
     return A + (bx/2)*u + h*v
           
 
-def plot_tangent_line_lat_long(circle,x,limit=10000,N=1000,**kwargs):
+def plot_tangent_line_lat_long(circle,x,crossing,limit=10000,N=1000,**kwargs):
     
-    dir = circle.tangent_line(x)
-    trange = np.linspace(-limit,limit,2*N+1)
-    points = x.reshape(-1,1) + np.outer(dir,trange)
-    earth_points = np.array([xyz_to_lat_long(*p) for p in points.transpose()])
-    return earth_points[N],earth_points
+    dir0,dir1,dir2 = circle.tangent_line(x,crossing)
+    lines = []
+    for dir in [dir0,dir1,dir2]:
+        if dir is None: continue
+        trange = np.linspace(-limit,limit,2*N+1)
+        points = x.reshape(-1,1) + np.outer(dir,trange)
+        earth_points = np.array([xyz_to_lat_long(*p) for p in points.transpose()])
+        lines.append([earth_points[N],earth_points])
+    return lines
     
     
-def calculate_intersections_with_lake(circle,x,lake_coordinates,limit=50000):
+def calculate_intersections_with_lake(circle,x,crossing,lake_coordinates,limit=50000):
     point_lat_long = xyz_to_lat_long(*x)
     lake_polygon = shapely.geometry.Polygon([[p[0],p[1]] for p in lake_coordinates])
-    dir = circle.tangent_line(x)
+    dir,dir1,dir2 = circle.tangent_line(x,crossing)
     R = np.linalg.norm(x)
     dR_dt = 1./R * np.dot(x,dir)
     dlat_dt = 1./(R*np.sqrt(R**2 - x[2]**2)) * (R*dir[2] - x[2]*dR_dt)

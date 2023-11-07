@@ -6,7 +6,7 @@ from GeometryHelpers import *
 
 LHC_surface_locations = {
     'ATLAS':(46.23498986744134, 6.053437868403428,440.9),
-    'Point2':(46.25152943082325, 6.0216164390182705,448.0),
+    'ALICE':(46.25152943082325, 6.0216164390182705,448.0),
     'Point3':(46.27753,6.01218,536.4),
     'Point4':(46.30443121543384, 6.036295278821727,585.9),
     'CMS':(46.30989989177777, 6.077425154913358,510.0),
@@ -28,13 +28,24 @@ LHC_horizontal = {
 
 LHC_elevation = {
     'ATLAS':None,
-    'Point2':0.5*(509.82 + 337.02),
+    'ALICE':0.5*(509.82 + 337.02),
     'Point3':None,
     'Point4':509.82,
     'CMS':None,
     'Point6':0.5*(509.82 + 337.02),
     'Point7':None,
     'LHCb':337.02
+}
+
+LHC_crossing_angles = {
+    'ATLAS':(0,280e-6),
+    'ALICE':(0,400e-6),
+    'Point3':None,
+    'Point4':None,
+    'CMS':(1,280e-6),
+    'Point6':None,
+    'Point7':None,
+    'LHCb':(1,300e-6)
 }
 
 Lake_edge = [
@@ -71,11 +82,11 @@ Lake_edge = [
 
 def main():
     LHC_locations = {k:(v[0],v[1],LHC_elevation[k]) for k,v in LHC_surface_locations.items()}
-    LHC_locations_cartesian = {k:lat_long_to_xyz(*LHC_locations[k]) for k in ['Point2','Point4','Point6','LHCb']}
+    LHC_locations_cartesian = {k:lat_long_to_xyz(*LHC_locations[k]) for k in ['ALICE','Point4','Point6','LHCb']}
 
 
     LHC_dataframe = pd.DataFrame(index=LHC_surface_locations.keys(),
-                                columns=['Latitude','Longitude','Elevation','SurfaceElevation','X','Y','Z'])
+                                columns=['Latitude','Longitude','Elevation','SurfaceElevation','X','Y','Z','CrossingOrientation','CrossingAngle'])
 
     for k in LHC_surface_locations.keys():
         LHC_dataframe['Latitude'][k] = LHC_locations[k][0]
@@ -86,6 +97,10 @@ def main():
         LHC_dataframe['X'][k] = LHC_locations_cartesian[k][0]
         LHC_dataframe['Y'][k] = LHC_locations_cartesian[k][1]
         LHC_dataframe['Z'][k] = LHC_locations_cartesian[k][2]
+    for k in LHC_crossing_angles.keys():
+        if LHC_crossing_angles[k] is not None:
+            LHC_dataframe['CrossingOrientation'][k] = LHC_crossing_angles[k][0]
+            LHC_dataframe['CrossingAngle'][k] = LHC_crossing_angles[k][1]
 
     for i in range(len(Lake_edge)): 
         Lake_edge[i] = (Lake_edge[i][0],Lake_edge[i][1],Lake_geneva_elevation)
@@ -99,3 +114,5 @@ def main():
 
     LHC_dataframe.to_parquet('../Data/LHC_data.parquet')
     Lake_dataframe.to_parquet('../Data/Lake_data.parquet')
+
+main()
