@@ -177,12 +177,32 @@ def plot_tangent_line_lat_long(circle,x,crossing,limit=10000,N=1000,**kwargs):
         earth_points = np.array([xyz_to_lat_long(*p) for p in points.transpose()])
         lines.append([earth_points[N],earth_points])
     return lines
+
+
+def skew(x):
+    return np.array([[0, -x[2], x[1]],
+                     [x[2], 0, -x[0]],
+                     [-x[1], x[0], 0]])
     
+def rotation_to_beam_direction(beam_dir):
+
+    # Follow https://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d
+    v = np.cross(beam_dir, [0,0,1])
+    s = np.linalg.norm(v)
+    c = np.dot(beam_dir, [0,0,1])
     
-def calculate_intersections_with_lake(circle,x,crossing,lake_coordinates,limit=50000):
+    # use skey symmetric cross product matrix
+    vx = skew(v)
+
+    # Construct rotation matrix
+    R = np.identity(3) + vx + np.matmul(vx,vx)*(1-c)/(s**2)
+    
+    # We want to rotate the beam away from [0,0,1] to the true direction
+    return np.linalg.inv(R)
+
+def calculate_single_lake_intersection(x,dir,lake_coordinates,limit=50000):
     point_lat_long = xyz_to_lat_long(*x)
     lake_polygon = shapely.geometry.Polygon([[p[0],p[1]] for p in lake_coordinates])
-    dir,dir1,dir2 = circle.tangent_line(x,crossing)
     R = np.linalg.norm(x)
     dR_dt = 1./R * np.dot(x,dir)
     dlat_dt = 1./(R*np.sqrt(R**2 - x[2]**2)) * (R*dir[2] - x[2]*dR_dt)
@@ -192,3 +212,37 @@ def calculate_intersections_with_lake(circle,x,crossing,lake_coordinates,limit=5
     line2 = shapely.geometry.LineString([[point_lat_long[0], point_lat_long[1]],
                                          [point_lat_long[0] - dlat_dt*limit, point_lat_long[1] - dlong_dt*limit]])
     return line1.intersection(lake_polygon),line2.intersection(lake_polygon)
+    
+    
+def calculate_intersections_with_lake(circle,x,crossing,lake_coordinates,particle_unit_dirs=None,limit=50000):
+    dir,dir1,dir2 = circle.tangent_line(x,crossing)
+    if particle_unit_dirs is not None:
+        # rotate particle dir wrt beam axis to global frame
+        # first get rotation matrix
+        R = rotation_to_beam_direction(dir)
+        # then do rotations
+        int1_list,int2_list = [],[]
+        for particle_unit_dir in particle_unit_dirs:
+            dir = np.dot(R,particle_unit_dir)
+            int1,int2 = calculate_single_lake_intersection(x,dir,lake_coordinates,limit=limit)
+            int1_list.append(int1)
+            int2_list.append(int2)
+        return int1_list,int2_list
+    else:
+        return calculate_single_lake_intersection(x,dir,lake_coordinates,limit=limit)
+    
+def calculate_intersections_with_surface(circle,x,crossing,particle_unit_dirs,limit=50000):
+    dir,dir1,dir2 = circle.tangent_line(x,crossing)
+    R = rotation_to_beam_direction(dir)
+    trange = np.linspace(-limit,limit,50000)
+    surface_intersections = []
+    surface_intersections_lat_long = []
+    for particle_unit_dir in particle_unit_dirs:
+        dir = np.dot(R,particle_unit_dir)
+        xrange = x.reshape(-1,1) + np.outer(dir,trange)
+        Rrange = np.linalg.norm(xrange,axis=0)
+        crossing_idx = np.argmin(np.abs(Rrange - (R_earth+Lake_geneva_elevation)))
+        surface_intersections.append(xrange.T[crossing_idx])
+        surface_intersections_lat_long.append(xyz_to_lat_long(*xrange.T[crossing_idx]))
+    return np.array(surface_intersections),np.array(surface_intersections_lat_long)
+        
