@@ -69,7 +69,7 @@ def get_flux_data(prefix,generator,parent):
         data_dict[k] = col
     data_dict['px'] = data_dict['E'] * np.sin(data_dict['thx'])
     data_dict['py'] = data_dict['E'] * np.sin(data_dict['thy'])
-    data_dict['pz'] = np.sqrt(data_dict['E']**2  -data_dict['px']**2 - data_dict['py'] **2)
+    data_dict['pz'] = np.sqrt(data_dict['E']**2  - data_dict['px']**2 - data_dict['py'] **2)
     
     return pd.DataFrame(data=data_dict)
 
@@ -138,44 +138,65 @@ class MuonSimulation:
             self.data['ux_lep'] = self.data['px_lep']/self.data['p_lep']
             self.data['uy_lep'] = self.data['py_lep']/self.data['p_lep']
             self.data['uz_lep'] = self.data['pz_lep']/self.data['p_lep']
+    
+    def EnsureUnitNeutrinoDir(self):
+        if 'p' not in self.data.keys():
+            self.data['p'] = np.sqrt(self.data['px']**2 + self.data['py']**2 + self.data['pz']**2)
+            self.data['ux'] = self.data['px']/self.data['p']
+            self.data['uy'] = self.data['py']/self.data['p']
+            self.data['uz'] = self.data['pz']/self.data['p']
         
         
-    def CalculateLakeIntersectionsFromIP(self,IPkey,N=None):
+    def CalculateLakeIntersectionsFromIP(self,IPkey,N=None,limit=5000000):
         
-        self.EnsureUnitLepDir()
+        self.EnsureUnitNeutrinoDir()
         if N is None: N = len(self.data)
-        lepton_dirs = np.array(self.data[['ux_lep','uy_lep','uz_lep']])[:N]
+        nu_dirs = np.array(self.data[['ux','uy','uz']])[:N]
         
         int1_list,int2_list = calculate_intersections_with_lake(LHC,
                                                                 np.array(LHC_data.loc[IPkey,['X','Y','Z']]),
                                                                 np.array(LHC_data.loc[IPkey,['CrossingOrientation','CrossingAngle']]),
                                                                 np.array(Lake_data[['Latitude','Longitude']]),
-                                                                particle_unit_dirs=lepton_dirs,
-                                                                limit=50000000)
+                                                                particle_unit_dirs=nu_dirs,
+                                                                limit=limit)
+        beam_dir = LHC.tangent_line(np.array(LHC_data.loc[IPkey,['X','Y','Z']]))
+        R = rotation_to_beam_direction(beam_dir)
         self.lake_intersections = []
-        for int1,int2 in zip(int1_list,int2_list):
+        self.lake_intersections_lat_long = []
+        for i,(int1,int2,nu_dir) in enumerate(zip(int1_list,int2_list,nu_dirs)):
+            print(i,end='\r')
             ints = []
+            ints_lat_long = []
+            nu_dir_global = np.dot(R,nu_dir)
+            trange = np.linspace(-100000,100000,2*1000)
+            points = np.array(LHC_data.loc[IPkey,['X','Y','Z']]).reshape(-1,1) + np.outer(nu_dir_global,trange)
+            earth_points = np.array([xyz_to_lat_long(*p) for p in points.transpose()])
             for intersections in (int1,int2):
                 if(type(intersections) == shapely.geometry.MultiLineString):
                     for intersection in intersections.geoms:
                         for coord in list(intersection.coords):
-                            ints.append(coord)
+                            ints_lat_long.append(coord)
+                            idx = np.argmin(np.sum(np.abs(earth_points[:,:2]-coord),axis=1))
+                            ints.append(points.transpose()[idx])
                 else:
                     for coord in list(intersections.coords):
-                        ints.append(coord)
+                        ints_lat_long.append(coord)
+                        idx = np.argmin(np.sum(np.abs(earth_points[:,:2]-coord),axis=1))
+                        ints.append(points.transpose()[idx])
             self.lake_intersections.append(ints)
+            self.lake_intersections_lat_long.append(ints_lat_long)
             
     def CalculateSurfaceIntersectionFromIP(self,IPkey,N=None):
         
-        self.EnsureUnitLepDir()
+        self.EnsureUnitNeutrinoDir()
         if N is None: N = len(self.data)
-        lepton_dirs = np.array(self.data[['ux_lep','uy_lep','uz_lep']])[:N]
+        nu_dirs = np.array(self.data[['ux','uy','uz']])[:N]
         
         (self.surface_intersections,
          self.surface_intersections_lat_long) = calculate_intersections_with_surface(LHC,
                                              np.array(LHC_data.loc[IPkey,['X','Y','Z']]),
                                              np.array(LHC_data.loc[IPkey,['CrossingOrientation','CrossingAngle']]),
-                                             particle_unit_dirs=lepton_dirs)
+                                             particle_unit_dirs=nu_dirs)
         
         
         

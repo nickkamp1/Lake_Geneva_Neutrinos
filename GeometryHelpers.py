@@ -8,6 +8,19 @@ import shapely.geometry
 R_earth = 6371000.
 Lake_geneva_elevation = 372.
 
+# https://math.stackexchange.com/questions/1076177/3d-coordinates-of-circle-center-given-three-point-on-the-circle
+def find_circle_center(A,B,C):
+    u1 = B - A
+    w1 = np.cross((C - A),u1)
+    u = u1/np.linalg.norm(u1)
+    w = w1/np.linalg.norm(w1)
+    v = np.cross(w,u)
+    bx = np.dot(B-A,u)
+    cx = np.dot(C-A,u)
+    cy = np.dot(C-A,v)
+    h = ((cx - bx/2)**2 + cy**2 - (bx/2)**2)/(2*cy)
+    return A + (bx/2)*u + h*v
+
 class Circle:
 
     def __init__(self,x1,x2,x3): 
@@ -152,18 +165,6 @@ def equirectangular(lat,long,elevation,phi_0):
         elevation,
     )
 
-# https://math.stackexchange.com/questions/1076177/3d-coordinates-of-circle-center-given-three-point-on-the-circle
-def find_circle_center(A,B,C):
-    u1 = B - A
-    w1 = np.cross((C - A),u1)
-    u = u1/np.linalg.norm(u1)
-    w = w1/np.linalg.norm(w1)
-    v = np.cross(w,u)
-    bx = np.dot(B-A,u)
-    cx = np.dot(C-A,u)
-    cy = np.dot(C-A,v)
-    h = ((cx - bx/2)**2 + cy**2 - (bx/2)**2)/(2*cy)
-    return A + (bx/2)*u + h*v
           
 
 def plot_tangent_line_lat_long(circle,x,crossing,limit=10000,N=1000,**kwargs):
@@ -231,17 +232,20 @@ def calculate_intersections_with_lake(circle,x,crossing,lake_coordinates,particl
     else:
         return calculate_single_lake_intersection(x,dir,lake_coordinates,limit=limit)
     
-def calculate_intersections_with_surface(circle,x,crossing,particle_unit_dirs,limit=50000):
+def calculate_intersections_with_surface(circle,x,crossing,particle_unit_dirs,limit=500000):
     dir,dir1,dir2 = circle.tangent_line(x,crossing)
     R = rotation_to_beam_direction(dir)
-    trange = np.linspace(-limit,limit,50000)
+    trange = np.linspace(0,limit,50000)
     surface_intersections = []
     surface_intersections_lat_long = []
     for particle_unit_dir in particle_unit_dirs:
         dir = np.dot(R,particle_unit_dir)
         xrange = x.reshape(-1,1) + np.outer(dir,trange)
         Rrange = np.linalg.norm(xrange,axis=0)
+        print(np.abs(Rrange - (R_earth+Lake_geneva_elevation)))
         crossing_idx = np.argmin(np.abs(Rrange - (R_earth+Lake_geneva_elevation)))
+        print(crossing_idx)
+        print(np.abs(Rrange - (R_earth+Lake_geneva_elevation))[crossing_idx-2:crossing_idx+2])
         surface_intersections.append(xrange.T[crossing_idx])
         surface_intersections_lat_long.append(xyz_to_lat_long(*xrange.T[crossing_idx]))
     return np.array(surface_intersections),np.array(surface_intersections_lat_long)
