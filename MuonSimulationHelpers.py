@@ -289,25 +289,30 @@ class MuonSimulation:
         self.data['DIS_distance'] = DIS_distance
         self.data['DIS_location'] = DIS_location.tolist()
 
-    def CalculateNeutrinoProfileFromIP(self,IPkey,N=None):
+    def CalculateBeamExitPointFromIP(self,IPkey):
+        result = calculate_intersections_with_surface(LHC,
+                                             np.array(LHC_data.loc[IPkey,['X','Y','Z']]),
+                                             np.array(LHC_data.loc[IPkey,['CrossingOrientation','CrossingAngle']]),
+                                             particle_unit_dirs=[[0,0,1]])
+        self.beam_exit_point = result[0][0]
+        self.beam_exit_point_lat_long = result[1][0]
+
+    def CalculateNeutrinoProfileFromIP(self,IPkey,N=None,beam_dist=None):
 
         self.EnsureUnitNeutrinoDir()
         if N is None: N = len(self.data)
 
         if not hasattr(self,'beam_exit_point'):
-            result = calculate_intersections_with_surface(LHC,
-                                             np.array(LHC_data.loc[IPkey,['X','Y','Z']]),
-                                             np.array(LHC_data.loc[IPkey,['CrossingOrientation','CrossingAngle']]),
-                                             particle_unit_dirs=[[0,0,1]])
-            self.beam_exit_point = result[0][0]
-            self.beam_exit_point_lat_long = result[1][0]
+            self.CalculateBeamExitPointFromIP(IPkey)
 
         # Starting location at interaction point
         x0 = np.array(LHC_data.loc[IPkey,['X','Y','Z']])
-        beam_dist = np.linalg.norm(self.beam_exit_point - x0)
-        print(beam_dist)
+        if beam_dist is None:
+            # assume we are considering the exit point
+            beam_dist = np.linalg.norm(self.beam_exit_point - x0)
 
-        transverse_profile = np.empty((N,2))
+        transverse_profile = np.zeros((len(self.data),2))
+        weights = np.zeros(len(self.data))
 
         for i,ind in enumerate(self.data.index):
             print(i,end='\r')
@@ -316,28 +321,27 @@ class MuonSimulation:
             nu_dist = beam_dist / CosTheta
             transverse_profile[i] = np.array([self.data['ux'][ind]*nu_dist,
                                               self.data['uy'][ind]*nu_dist])
-        return transverse_profile
+            weights[i] = self.data['wgt'][ind]*1000*150*len(self.data)/N
+        self.data["nu_transverse_profile"] = transverse_profile
+        self.data["nu_weight"] = weights
     
-    def CalculateMuonProfileFromIP(self,IPkey,N=None):
+    def CalculateMuonProfileFromIP(self,IPkey,N=None,beam_dist=None):
 
         self.EnsureUnitNeutrinoDir()
         self.EnsureUnitLepDir()
         if N is None: N = len(self.data)
 
         if not hasattr(self,'beam_exit_point'):
-            result = calculate_intersections_with_surface(LHC,
-                                             np.array(LHC_data.loc[IPkey,['X','Y','Z']]),
-                                             np.array(LHC_data.loc[IPkey,['CrossingOrientation','CrossingAngle']]),
-                                             particle_unit_dirs=[[0,0,1]])
-            self.beam_exit_point = result[0][0]
-            self.beam_exit_point_lat_long = result[1][0]
+            self.CalculateBeamExitPointFromIP(IPkey)
 
         # Starting location at interaction point
         x0 = np.array(LHC_data.loc[IPkey,['X','Y','Z']])
-        beam_dist = np.linalg.norm(self.beam_exit_point - x0)
-        print(beam_dist)
+        if beam_dist is None:
+            beam_dist = np.linalg.norm(self.beam_exit_point - x0)
 
-        transverse_profile = []
+        transverse_profile = np.zeros((len(self.data),2))
+        weights = np.zeros(len(self.data))
+        muon_lengths = np.zeros(len(self.data))
 
         for i,ind in enumerate(self.data.index):
             print(i,end='\r')
@@ -349,9 +353,14 @@ class MuonSimulation:
             mu_beam_dist = beam_dist - DIS_dist/nu_CosTheta
             mu_dist = mu_beam_dist/lep_CosTheta
 
-            transverse_profile.append(np.array([self.data['ux'][ind]*DIS_dist + self.data['ux_lep'][ind]*mu_dist,
-                                                self.data['uy'][ind]*DIS_dist + self.data['uy_lep'][ind]*mu_dist]))
-        return np.array(transverse_profile)
+            transverse_profile[i] = np.array([self.data['ux'][ind]*DIS_dist + self.data['ux_lep'][ind]*mu_dist,
+                                              self.data['uy'][ind]*DIS_dist + self.data['uy_lep'][ind]*mu_dist])
+            muon_lengths[i] = mu_dist
+            if mu_beam_dist<0: continue # backward-going muons get zero-weighted
+            weights[i] = self.data['wgt'][ind]*self.data['interaction_probability'][ind]*1000*150*len(self.data)/N
+        self.data["muon_transverse_profile"] = transverse_profile
+        self.data["muon_weights"] = weights
+        self.data["muon_lengths"] = muon_lengths
 
             
 
