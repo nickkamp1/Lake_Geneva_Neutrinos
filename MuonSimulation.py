@@ -19,6 +19,7 @@ def main():
     simulation.CalculateDISlocationFromIP(args.interaction_point,args.N)
     simulation.CalculateNeutrinoProfileFromIP(args.interaction_point,args.N)
     simulation.CalculateMuonProfileFromIP(args.interaction_point,args.N)
+    simulation.CalculateLeptonSurfaceIntersectionFromIP(args.interaction_point,args.N)
     simulation.DumpData("Data/MuonSimulation/fresh/%s_%s_%s_%s.parquet"%(args.interaction_point,
                                                                          args.tag,
                                                                          args.generator,

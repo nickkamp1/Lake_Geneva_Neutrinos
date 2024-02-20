@@ -75,6 +75,11 @@ def get_flux_data(prefix,generator,parent):
     # shuffle rows 
     return df.sample(frac=1).reset_index(drop=True)
 
+# returns the muon range in m
+# rho is the material density in g/cm^3
+def muon_range(E,rho=1):
+    return 1./(rho * 5e-4) * np.log(1 + 2e-3 * E)
+
 
 class MuonSimulation:
 
@@ -223,7 +228,28 @@ class MuonSimulation:
         self.data['surface_intersection'] = surface_intersections.tolist()
         self.data['surface_intersection_lat_long'] = surface_intersections_lat_long.tolist()
 
-    def CalculateDISlocationFromIP(self,IPkey,N=None):
+    def CalculateLeptonSurfaceIntersectionFromIP(self,IPkey,N=None):
+        
+        self.EnsureUnitLepDir()
+        if N is None: N = len(self.data)
+        lep_dirs = np.array(self.data[['ux_lep','uy_lep','uz_lep']])[:N]
+        lep_locs = np.array([x for x in self.data['DIS_location']])[:N]
+        surface_intersections = np.zeros((len(self.data),3))
+        surface_intersections_lat_long = np.zeros((len(self.data),3))
+        beam_pos = np.array(LHC_data.loc[IPkey,['X','Y','Z']])
+        beam_dir = LHC.tangent_line(beam_pos)
+        (surface_intersections[:N],
+         surface_intersections_lat_long[:N]) = calculate_intersections_with_surface(beam_pos,
+                                                                                    beam_dir,
+                                                                                    particle_positions=lep_locs,
+                                                                                    particle_unit_dirs=lep_dirs,
+                                                                                    particle_position_beam_coordinates=False)
+        self.data['lepton_surface_intersection'] = surface_intersections.tolist()
+        DIS_locations = np.array([x for x in self.data['DIS_location']])
+        self.data['lepton_surface_distances'] = np.linalg.norm(surface_intersections-DIS_locations,axis=-1).tolist()
+        self.data['lepton_surface_intersection_lat_long'] = surface_intersections_lat_long.tolist()
+
+    def CalculateDISlocationFromIP(self,IPkey,N=None,detector_distance=None,n_lengths=1):
 
         NA = 6.02e23 # particles/mol
         rho_earth = 2.7 # g/cm^3
@@ -237,6 +263,11 @@ class MuonSimulation:
         x0 = np.array(LHC_data.loc[IPkey,['X','Y','Z']])
         beam_dir = LHC.tangent_line(np.array(LHC_data.loc[IPkey,['X','Y','Z']]))
         R = rotation_to_beam_direction(beam_dir)
+
+        # Calculate beam exit point
+        self.CalculateBeamExitPointFromIP(IPkey)
+        if detector_distance is None:
+            detector_distance = np.linalg.norm(self.beam_exit_point-x0)
 
         DIS_location = np.zeros((len(self.data),3))
         DIS_distance = np.zeros(len(self.data))
@@ -259,18 +290,22 @@ class MuonSimulation:
             in_earth = True
             distances = []
             densities = []
-            prev_distance = 0
+            nu_detector_distance = detector_distance / self.data['uz'][ind] # distance along neutrino line to detector plane
+            max_distance = min(nu_detector_distance,self.data['surface_distance'][ind])
+            min_distance = max_distance - n_lengths*muon_range(self.data["E_lep"][ind],rho=rho_water)
+            prev_distance = min_distance
             for i_cross in range(4):
-                if in_earth:
-                    densities.append(rho_earth*NA/M_nucleon)
-                else:
-                    densities.append(rho_water*NA/M_nucleon)
-                if self.data['surface_distance'][ind] < self.data['lake_distance%d'%i_cross][ind]:
-                    # we have exited the surface
-                    distances.append(100*(self.data['surface_distance'][ind]-prev_distance)) # cm
+                rho = rho_earth if in_earth else rho_water
+                if self.data['lake_distance%d'%i_cross][ind] < min_distance: 
+                    # the lake crossing is before the minimum simulation distance
+                    continue
+                densities.append(rho*NA/M_nucleon)
+                if max_distance < self.data['lake_distance%d'%i_cross][ind]:
+                    # we have exited the surface or reached the detector distance
+                    distances.append(100*(max_distance-prev_distance)) # cm
                     break
                 else:
-                    # we are still under the surface
+                    # we are still under the surface and before the detector
                     distances.append(100*(self.data['lake_distance%d'%i_cross][ind]-prev_distance)) # cm
                     prev_distance = self.data['lake_distance%d'%i_cross][ind]
                 # flip to the other medium
@@ -286,8 +321,9 @@ class MuonSimulation:
                     break
                 distance += dist
                 integral += dist*p
+            DIS_distance[i] += min_distance
             nu_dir_global = np.dot(R,np.array(self.data[['ux','uy','uz']])[ind])
-            DIS_location[i] = x0 + nu_dir_global*DIS_distance[i] # back to m
+            DIS_location[i] = x0 + nu_dir_global*min_distance # back to m
             
 
         self.data['interaction_probability'] = interaction_probability
@@ -295,22 +331,22 @@ class MuonSimulation:
         self.data['DIS_location'] = DIS_location.tolist()
 
     def CalculateBeamExitPointFromIP(self,IPkey):
-        beam_pos = np.array(LHC_data.loc[IPkey,['X','Y','Z']])
-        beam_dir = LHC.tangent_line(beam_pos)
-        result = calculate_intersections_with_surface(beam_pos,
-                                                      beam_dir,
-                                                      particle_positions = [[0,0,0]],
-                                                      particle_unit_dirs=[[0,0,1]])
-        self.beam_exit_point = result[0][0]
-        self.beam_exit_point_lat_long = result[1][0]
+        if not hasattr(self,'beam_exit_point') or not hasattr(self,'beam_exit_point_lat_long'):
+            beam_pos = np.array(LHC_data.loc[IPkey,['X','Y','Z']])
+            beam_dir = LHC.tangent_line(beam_pos)
+            result = calculate_intersections_with_surface(beam_pos,
+                                                        beam_dir,
+                                                        particle_positions = [[0,0,0]],
+                                                        particle_unit_dirs=[[0,0,1]])
+            self.beam_exit_point = result[0][0]
+            self.beam_exit_point_lat_long = result[1][0]
 
-    def CalculateNeutrinoProfileFromIP(self,IPkey,N=None,beam_dist=None):
+    def CalculateNeutrinoProfileFromIP(self,IPkey,N=None,beam_dist=None,lumi=150):
 
         self.EnsureUnitNeutrinoDir()
         if N is None: N = len(self.data)
 
-        if not hasattr(self,'beam_exit_point'):
-            self.CalculateBeamExitPointFromIP(IPkey)
+        self.CalculateBeamExitPointFromIP(IPkey)
 
         # Starting location at interaction point
         x0 = np.array(LHC_data.loc[IPkey,['X','Y','Z']])
@@ -328,7 +364,7 @@ class MuonSimulation:
             nu_dist = beam_dist / CosTheta
             transverse_profile[i] = np.array([self.data['ux'][ind]*nu_dist,
                                               self.data['uy'][ind]*nu_dist])
-            weights[i] = self.data['wgt'][ind]*1000*150*len(self.data)/N
+            weights[i] = self.data['wgt'][ind]*1000*lumi*len(self.data)/N
         self.data["nu_transverse_profile_x"] = transverse_profile[:,0]
         self.data["nu_transverse_profile_y"] = transverse_profile[:,1]
         self.data["nu_weight"] = weights
@@ -339,8 +375,7 @@ class MuonSimulation:
         self.EnsureUnitLepDir()
         if N is None: N = len(self.data)
 
-        if not hasattr(self,'beam_exit_point'):
-            self.CalculateBeamExitPointFromIP(IPkey)
+        self.CalculateBeamExitPointFromIP(IPkey)
 
         # Starting location at interaction point
         x0 = np.array(LHC_data.loc[IPkey,['X','Y','Z']])

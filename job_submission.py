@@ -3,7 +3,7 @@ import sys
 
 light_generators = ["EPOSLHC","DPMJET","SIBYLL","QGSJET","PYTHIA8"]
 charm_generators = ["BKSS","BKRS","SIBYLL","BDGJKR","MS"]
-N=100000
+N=20000
 
 for gen_l,gen_c in zip(light_generators,charm_generators):
     cmd = "python MuonSimulation.py -t LHC13 -g %s -m light -n %d"%(gen_l,N)
