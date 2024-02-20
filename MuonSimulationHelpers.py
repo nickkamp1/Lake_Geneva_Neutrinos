@@ -71,7 +71,9 @@ def get_flux_data(prefix,generator,parent):
     data_dict['py'] = data_dict['E'] * np.sin(data_dict['thy'])
     data_dict['pz'] = np.sqrt(data_dict['E']**2  - data_dict['px']**2 - data_dict['py'] **2)
     
-    return pd.DataFrame(data=data_dict)
+    df = pd.DataFrame(data=data_dict)
+    # shuffle rows 
+    return df.sample(frac=1).reset_index(drop=True)
 
 
 class MuonSimulation:
@@ -106,7 +108,7 @@ class MuonSimulation:
 
         if N is None: N = len(self.data)
         for i,ind in enumerate(self.data.index):
-            print(i,end='\r')
+            print("%d out of %d"%(i,N),end='\r')
             if i>N: break
             if self.data['E'][ind] <= 10: continue
             primary_type = LI.dataclasses.Particle.ParticleType(int(self.data['PDG'][ind]))
@@ -177,7 +179,7 @@ class MuonSimulation:
         self.lake_intersections = []
         self.lake_intersections_lat_long = []
         for i,(int1,int2,nu_dir) in enumerate(zip(int1_list,int2_list,nu_dirs)):
-            print(i,end='\r')
+            print("%d out of %d"%(i,N),end='\r')
             ints = []
             ints_lat_long = []
             nu_dir_global = np.dot(R,nu_dir)
@@ -208,13 +210,16 @@ class MuonSimulation:
         self.EnsureUnitNeutrinoDir()
         if N is None: N = len(self.data)
         nu_dirs = np.array(self.data[['ux','uy','uz']])[:N]
+        nu_locs = np.array(self.data[['x0','y0','z0']])[:N]
         surface_intersections = np.zeros((len(self.data),3))
         surface_intersections_lat_long = np.zeros((len(self.data),3))
+        beam_pos = np.array(LHC_data.loc[IPkey,['X','Y','Z']])
+        beam_dir = LHC.tangent_line(beam_pos)
         (surface_intersections[:N],
-         surface_intersections_lat_long[:N]) = calculate_intersections_with_surface(LHC,
-                                             np.array(LHC_data.loc[IPkey,['X','Y','Z']]),
-                                             np.array(LHC_data.loc[IPkey,['CrossingOrientation','CrossingAngle']]),
-                                             particle_unit_dirs=nu_dirs)
+         surface_intersections_lat_long[:N]) = calculate_intersections_with_surface(beam_pos,
+                                                                                    beam_dir,
+                                                                                    particle_positions=nu_locs,
+                                                                                    particle_unit_dirs=nu_dirs)
         self.data['surface_intersection'] = surface_intersections.tolist()
         self.data['surface_intersection_lat_long'] = surface_intersections_lat_long.tolist()
 
@@ -243,7 +248,7 @@ class MuonSimulation:
             for i in range(4): self.data['lake_distance%d'%i] = [np.linalg.norm(np.array(x) - x0) for x in self.data['lake_intersection%d'%i]]
 
         for i,ind in enumerate(self.data.index):
-            print(i,end='\r')
+            print("%d out of %d"%(i,N),end='\r')
             if i>N: break
             if self.data['E'][ind] <= 10: continue
             if self.data['PDG'][ind] > 0:
@@ -290,10 +295,12 @@ class MuonSimulation:
         self.data['DIS_location'] = DIS_location.tolist()
 
     def CalculateBeamExitPointFromIP(self,IPkey):
-        result = calculate_intersections_with_surface(LHC,
-                                             np.array(LHC_data.loc[IPkey,['X','Y','Z']]),
-                                             np.array(LHC_data.loc[IPkey,['CrossingOrientation','CrossingAngle']]),
-                                             particle_unit_dirs=[[0,0,1]])
+        beam_pos = np.array(LHC_data.loc[IPkey,['X','Y','Z']])
+        beam_dir = LHC.tangent_line(beam_pos)
+        result = calculate_intersections_with_surface(beam_pos,
+                                                      beam_dir,
+                                                      particle_positions = [[0,0,0]],
+                                                      particle_unit_dirs=[[0,0,1]])
         self.beam_exit_point = result[0][0]
         self.beam_exit_point_lat_long = result[1][0]
 
@@ -315,17 +322,18 @@ class MuonSimulation:
         weights = np.zeros(len(self.data))
 
         for i,ind in enumerate(self.data.index):
-            print(i,end='\r')
-            if i>=N: break
+            print("%d out of %d"%(i,N),end='\r')
+            if i>N: break
             CosTheta = self.data['uz'][ind]
             nu_dist = beam_dist / CosTheta
             transverse_profile[i] = np.array([self.data['ux'][ind]*nu_dist,
                                               self.data['uy'][ind]*nu_dist])
             weights[i] = self.data['wgt'][ind]*1000*150*len(self.data)/N
-        self.data["nu_transverse_profile"] = transverse_profile
+        self.data["nu_transverse_profile_x"] = transverse_profile[:,0]
+        self.data["nu_transverse_profile_y"] = transverse_profile[:,1]
         self.data["nu_weight"] = weights
     
-    def CalculateMuonProfileFromIP(self,IPkey,N=None,beam_dist=None):
+    def CalculateMuonProfileFromIP(self,IPkey,N=None,beam_dist=None,lumi=150):
 
         self.EnsureUnitNeutrinoDir()
         self.EnsureUnitLepDir()
@@ -344,8 +352,8 @@ class MuonSimulation:
         muon_lengths = np.zeros(len(self.data))
 
         for i,ind in enumerate(self.data.index):
-            print(i,end='\r')
-            if i>=N: break
+            print("%d out of %d"%(i,N),end='\r')
+            if i>N: break
             if np.abs(self.data['PDG'][ind]) != 14: continue #only accept numu
             nu_CosTheta = self.data['uz'][ind]
             lep_CosTheta = self.data['uz_lep'][ind]
@@ -357,8 +365,9 @@ class MuonSimulation:
                                               self.data['uy'][ind]*DIS_dist + self.data['uy_lep'][ind]*mu_dist])
             muon_lengths[i] = mu_dist
             if mu_beam_dist<0: continue # backward-going muons get zero-weighted
-            weights[i] = self.data['wgt'][ind]*self.data['interaction_probability'][ind]*1000*150*len(self.data)/N
-        self.data["muon_transverse_profile"] = transverse_profile
+            weights[i] = self.data['wgt'][ind]*self.data['interaction_probability'][ind]*1000*lumi*len(self.data)/N
+        self.data["muon_transverse_profile_x"] = transverse_profile[:,0]
+        self.data["muon_transverse_profile_y"] = transverse_profile[:,1]
         self.data["muon_weights"] = weights
         self.data["muon_lengths"] = muon_lengths
 

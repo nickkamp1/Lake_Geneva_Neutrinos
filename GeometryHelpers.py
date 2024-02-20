@@ -232,15 +232,20 @@ def calculate_intersections_with_lake(circle,x,crossing,lake_coordinates,particl
     else:
         return calculate_single_lake_intersection(x,dir,lake_coordinates,limit=limit)
     
-def calculate_intersections_with_surface(circle,x,crossing,particle_unit_dirs,limit=500000):
-    dir,dir1,dir2 = circle.tangent_line(x,crossing)
-    R = rotation_to_beam_direction(dir)
+def calculate_intersections_with_surface(beam_pos,beam_dir,particle_positions,particle_unit_dirs,limit=500000):
+    R = rotation_to_beam_direction(beam_dir)
     trange = np.linspace(0,limit,50000)
     surface_intersections = []
     surface_intersections_lat_long = []
-    for particle_unit_dir in particle_unit_dirs:
-        dir = np.dot(R,particle_unit_dir)
-        xrange = x.reshape(-1,1) + np.outer(dir,trange)
+    for particle_position,particle_unit_dir in zip(particle_positions,
+                                                   particle_unit_dirs):
+        particle_dir = np.dot(R,particle_unit_dir)
+        norm = np.linalg.norm(particle_position)
+        if norm>0: particle_unit_position = particle_position/np.linalg.norm(particle_position)
+        else: particle_unit_position = particle_position
+        particle_origin_unit_dir = np.dot(R,particle_unit_position)
+        particle_position = beam_pos + norm*particle_origin_unit_dir
+        xrange = particle_position.reshape(-1,1) + np.outer(particle_dir,trange)
         Rrange = np.linalg.norm(xrange,axis=0)
         crossing_idx = np.argmin(np.abs(Rrange - (R_earth+Lake_geneva_elevation)))
         surface_intersections.append(xrange.T[crossing_idx])
