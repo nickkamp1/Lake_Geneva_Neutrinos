@@ -46,16 +46,16 @@ DIS_xs['nu_CC'] = DISFromSpline(xsfiledir+'/dsdxdy_nu_CC_iso.fits',
                                 xsfiledir+'/sigma_nu_CC_iso.fits',
                                 [nue,numu,nutau],
                                 [target_type],'m')
-DIS_xs['nu_NC'] = DISFromSpline(xsfiledir+'/dsdxdy_nu_CC_iso.fits',
-                                xsfiledir+'/sigma_nu_CC_iso.fits',
+DIS_xs['nu_NC'] = DISFromSpline(xsfiledir+'/dsdxdy_nu_NC_iso.fits',
+                                xsfiledir+'/sigma_nu_NC_iso.fits',
                                 [nue,numu,nutau],
                                 [target_type],'m')
 DIS_xs['nubar_CC'] = DISFromSpline(xsfiledir+'/dsdxdy_nubar_CC_iso.fits',
                                    xsfiledir+'/sigma_nubar_CC_iso.fits',
                                   [nuebar,numubar,nutaubar],
                                   [target_type],'m')
-DIS_xs['nubar_NC'] = DISFromSpline(xsfiledir+'/dsdxdy_nubar_CC_iso.fits',
-                                   xsfiledir+'/sigma_nubar_CC_iso.fits',
+DIS_xs['nubar_NC'] = DISFromSpline(xsfiledir+'/dsdxdy_nubar_NC_iso.fits',
+                                   xsfiledir+'/sigma_nubar_NC_iso.fits',
                                   [nuebar,numubar,nutaubar],
                                   [target_type],'m')
 # Helper functions
@@ -83,7 +83,15 @@ def muon_range(E,rho=1):
 
 class MuonSimulation:
 
-    def __init__(self,infile=None,prefix=None,generator=None,parent=None,Nstart=0,N=None,verbose=False):
+    def __init__(self,infile=None,
+                 prefix=None,
+                 generator=None,
+                 parent=None,
+                 Nstart=0,
+                 N=None,
+                 xs_mode="CC",
+                 det_mode="lake",
+                 verbose=False):
         if infile is not None:
             self.data = pd.read_parquet(infile)
         elif None not in [prefix,generator,parent]:
@@ -94,6 +102,19 @@ class MuonSimulation:
             print('Insufficient input arguments. Exiting...')
             exit(0)
         self.verbose = verbose
+        if det_mode not in ["lake","surface"]:
+            print("Invalid det mode %s, use lake or surface"%det_mode)
+            exit(0)
+        self.det_mode = det_mode
+        if xs_mode=="CC":
+            self.DIS_nu = DIS_xs['nu_CC']
+            self.DIS_nubar = DIS_xs['nubar_CC']
+        elif xs_mode=="NC":
+            self.DIS_nu = DIS_xs['nu_NC']
+            self.DIS_nubar = DIS_xs['nubar_NC']
+        else:
+            print("Invalid xs mode %s, use CC or NC"%xs_mode)
+            exit(0)
 
     def SampleSecondaryMomenta(self,N=None):
 
@@ -101,18 +122,18 @@ class MuonSimulation:
         record = LI.dataclasses.InteractionRecord()
         record.signature.target_type = target_type
         record.target_mass = m_iso
-        record.target_momentum = [m_iso,0,0,0]
+        #record.target_momentum = [m_iso,0,0,0]
         sec_types = [LI.dataclasses.Particle.MuMinus,LI.dataclasses.Particle.Hadrons]
         record.signature.secondary_types = sec_types
 
-        self.data['E_lep'] = np.zeros(len(self.data))
-        self.data['px_lep'] = np.zeros(len(self.data))
-        self.data['py_lep'] = np.zeros(len(self.data))
-        self.data['pz_lep'] = np.zeros(len(self.data))
-        self.data['E_had'] = np.zeros(len(self.data))
-        self.data['px_had'] = np.zeros(len(self.data))
-        self.data['py_had'] = np.zeros(len(self.data))
-        self.data['pz_had'] = np.zeros(len(self.data))
+        E_lep = np.zeros(len(self.data))
+        px_lep = np.zeros(len(self.data))
+        py_lep = np.zeros(len(self.data))
+        pz_lep = np.zeros(len(self.data))
+        E_had = np.zeros(len(self.data))
+        px_had = np.zeros(len(self.data))
+        py_had = np.zeros(len(self.data))
+        pz_had = np.zeros(len(self.data))
 
         if N is None: N = len(self.data)
         for i,ind in enumerate(self.data.index):
@@ -124,21 +145,32 @@ class MuonSimulation:
                                        self.data['px'][ind],
                                        self.data['py'][ind],
                                        self.data['pz'][ind]]
+            xs_record = LI.dataclasses.CrossSectionDistributionRecord(record)
             if self.data['PDG'][ind] > 0:
-                record.signature = DIS_xs['nu_CC'].GetPossibleSignaturesFromParents(primary_type,target_type)[0]
-                DIS_xs['nu_CC'].SampleFinalState(record,random)
+                record.signature = self.DIS_nu.GetPossibleSignaturesFromParents(primary_type,target_type)[0]
+                self.DIS_nu.SampleFinalState(xs_record,random)
             else:
-                record.signature = DIS_xs['nubar_CC'].GetPossibleSignaturesFromParents(primary_type,target_type)[0]
-                DIS_xs['nubar_CC'].SampleFinalState(record,random)
+                record.signature = self.DIS_nubar.GetPossibleSignaturesFromParents(primary_type,target_type)[0]
+                self.DIS_nubar.SampleFinalState(xs_record,random)
+            xs_record.Finalize(record)
             theta = 2*np.pi*np.random.random() # rotate by a random number
-            self.data['E_lep'][ind] = record.secondary_momenta[0][0]
-            self.data['px_lep'][ind] = np.cos(theta) * record.secondary_momenta[0][1] - np.sin(theta) * record.secondary_momenta[0][2]
-            self.data['py_lep'][ind] = np.sin(theta) * record.secondary_momenta[0][1] + np.cos(theta) * record.secondary_momenta[0][2]
-            self.data['pz_lep'][ind] = record.secondary_momenta[0][3]
-            self.data['E_had'][ind] = record.secondary_momenta[1][0]
-            self.data['px_had'][ind] = np.cos(theta) * record.secondary_momenta[1][1] - np.sin(theta) * record.secondary_momenta[1][2]
-            self.data['py_had'][ind] = np.sin(theta) * record.secondary_momenta[1][1] + np.cos(theta) * record.secondary_momenta[1][2]
-            self.data['pz_had'][ind] = record.secondary_momenta[1][3]
+            E_lep[i] = record.secondary_momenta[0][0]
+            px_lep[i] = np.cos(theta) * record.secondary_momenta[0][1] - np.sin(theta) * record.secondary_momenta[0][2]
+            py_lep[i] = np.sin(theta) * record.secondary_momenta[0][1] + np.cos(theta) * record.secondary_momenta[0][2]
+            pz_lep[i] = record.secondary_momenta[0][3]
+            E_had[i] = record.secondary_momenta[1][0]
+            px_had[i] = np.cos(theta) * record.secondary_momenta[1][1] - np.sin(theta) * record.secondary_momenta[1][2]
+            py_had[i] = np.sin(theta) * record.secondary_momenta[1][1] + np.cos(theta) * record.secondary_momenta[1][2]
+            pz_had[i] = record.secondary_momenta[1][3]
+        
+        self.data['E_lep'] = E_lep
+        self.data['px_lep'] = px_lep
+        self.data['py_lep'] = py_lep
+        self.data['pz_lep'] = pz_lep
+        self.data['E_had'] = E_had
+        self.data['px_had'] = px_had
+        self.data['py_had'] = py_had
+        self.data['pz_had'] = pz_had
 
     def DumpData(self,file):
         self.data.to_parquet(file)
@@ -252,7 +284,7 @@ class MuonSimulation:
         self.data['lepton_surface_distances'] = np.linalg.norm(surface_intersections-DIS_locations,axis=-1).tolist()
         self.data['lepton_surface_intersection_lat_long'] = surface_intersections_lat_long.tolist()
 
-    def CalculateDISlocationFromIP(self,IPkey,N=None,detector_distance=None,n_lengths=1):
+    def CalculateDISlocationFromIP(self,IPkey,N=None,n_lengths=1):
 
         NA = 6.02e23 # particles/mol
         rho_earth = 2.7 # g/cm^3
@@ -269,8 +301,7 @@ class MuonSimulation:
 
         # Calculate beam exit point
         self.CalculateBeamExitPointFromIP(IPkey)
-        if detector_distance is None:
-            detector_distance = np.linalg.norm(self.beam_exit_point-x0)
+        beam_surface_distance = np.linalg.norm(self.beam_exit_point-x0)
 
         DIS_location = np.zeros((len(self.data),3))
         DIS_distance = np.zeros(len(self.data))
@@ -286,16 +317,23 @@ class MuonSimulation:
             if i>N: break
             if self.data['E'][ind] <= 10: continue
             if self.data['PDG'][ind] > 0:
-                xs = DIS_xs['nu_CC'].TotalCrossSection(LI.dataclasses.Particle.ParticleType(int(self.data['PDG'][ind])),self.data['E'][ind])
+                xs = self.DIS_nu.TotalCrossSection(LI.dataclasses.Particle.ParticleType(int(self.data['PDG'][ind])),self.data['E'][ind])
             else:
-                xs = DIS_xs['nubar_CC'].TotalCrossSection(LI.dataclasses.Particle.ParticleType(int(self.data['PDG'][ind])),self.data['E'][ind])
+                xs = self.DIS_nubar.TotalCrossSection(LI.dataclasses.Particle.ParticleType(int(self.data['PDG'][ind])),self.data['E'][ind])
             # build PDF
             in_earth = True
             distances = []
             densities = []
-            nu_detector_distance = detector_distance / self.data['uz'][ind] # distance along neutrino line to detector plane
-            max_distance = min(nu_detector_distance,self.data['surface_distance'][ind])
-            min_distance = max_distance - n_lengths*muon_range(self.data["E_lep"][ind],rho=rho_water)
+            if self.det_mode=="lake":
+                min_distance = (1+1e-3)*self.data['lake_distance0'][ind] # just past first lake intersection
+                max_distance = (1-1e-3)*self.data['lake_distance1'][ind] # just before second lake intersection
+            elif self.det_mode=="surface":
+                nu_detector_distance = beam_surface_distance / self.data['uz'][ind] # distance along neutrino line to detector plane
+                max_distance = min(nu_detector_distance,self.data['surface_distance'][ind])
+                min_distance = max_distance - n_lengths*muon_range(self.data["E_lep"][ind],rho=rho_water)
+            else:
+                print("bad det mode")
+                exit(0)
             prev_distance = min_distance
             for i_cross in range(4):
                 rho = rho_earth if in_earth else rho_water
@@ -326,7 +364,7 @@ class MuonSimulation:
                 integral += dist*p
             DIS_distance[i] += min_distance
             nu_dir_global = np.dot(R,np.array(self.data[['ux','uy','uz']])[ind])
-            DIS_location[i] = x0 + nu_dir_global*min_distance # back to m
+            DIS_location[i] = x0 + nu_dir_global*DIS_distance[i] # back to m
             
 
         self.data['interaction_probability'] = interaction_probability
@@ -344,7 +382,7 @@ class MuonSimulation:
             self.beam_exit_point = result[0][0]
             self.beam_exit_point_lat_long = result[1][0]
 
-    def CalculateNeutrinoProfileFromIP(self,IPkey,N=None,beam_dist=None,lumi=150):
+    def CalculateNeutrinoProfileFromIP(self,IPkey,N=None,lumi=150):
 
         self.EnsureUnitNeutrinoDir()
         if N is None: N = len(self.data)
@@ -353,9 +391,7 @@ class MuonSimulation:
 
         # Starting location at interaction point
         x0 = np.array(LHC_data.loc[IPkey,['X','Y','Z']])
-        if beam_dist is None:
-            # assume we are considering the exit point
-            beam_dist = np.linalg.norm(self.beam_exit_point - x0)
+        beam_dist = np.linalg.norm(self.beam_exit_point - x0)
 
         transverse_profile = np.zeros((len(self.data),2))
         weights = np.zeros(len(self.data))
@@ -364,7 +400,13 @@ class MuonSimulation:
             if self.verbose: print("%d out of %d"%(i,N),end='\r')
             if i>N: break
             CosTheta = self.data['uz'][ind]
-            nu_dist = beam_dist / CosTheta
+            if self.det_mode=="lake":
+                # we are considering the front of the lake point
+                det_dist = ((1+1e-3)*self.data['lake_distance0'][ind]) / CosTheta
+            elif self.det_mode=="surface":
+                # we are considering the surface exit point
+                det_dist = beam_dist
+            nu_dist = det_dist / CosTheta
             transverse_profile[i] = np.array([self.data['ux'][ind]*nu_dist,
                                               self.data['uy'][ind]*nu_dist])
             weights[i] = self.data['wgt'][ind]*1000*lumi
@@ -382,8 +424,7 @@ class MuonSimulation:
 
         # Starting location at interaction point
         x0 = np.array(LHC_data.loc[IPkey,['X','Y','Z']])
-        if beam_dist is None:
-            beam_dist = np.linalg.norm(self.beam_exit_point - x0)
+        beam_dist = np.linalg.norm(self.beam_exit_point - x0)
 
         transverse_profile = np.zeros((len(self.data),2))
         weights = np.zeros(len(self.data))
@@ -396,7 +437,13 @@ class MuonSimulation:
             nu_CosTheta = self.data['uz'][ind]
             lep_CosTheta = self.data['uz_lep'][ind]
             DIS_dist = self.data['DIS_distance'][ind]
-            mu_beam_dist = beam_dist - DIS_dist/nu_CosTheta
+            if self.det_mode=="lake":
+                # we are considering the front of the lake point
+                det_dist = ((1+1e-3)*self.data['lake_distance0'][ind])
+            elif self.det_mode=="surface":
+                # we are considering the surface exit point
+                det_dist = beam_dist
+            mu_beam_dist = det_dist - DIS_dist/nu_CosTheta
             mu_dist = mu_beam_dist/lep_CosTheta
 
             transverse_profile[i] = np.array([self.data['ux'][ind]*DIS_dist + self.data['ux_lep'][ind]*mu_dist,

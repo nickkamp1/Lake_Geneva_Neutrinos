@@ -11,13 +11,17 @@ def main():
     parser.add_argument("-n", "--N", help="number of events to simulate", type=int, default=None)
     parser.add_argument("-ns", "--Nstart", help="starting simulation event", type=int, default=0)
     parser.add_argument("-ip", "--interaction-point", help="LHC Interaction Point", type=str, default="LHCb")
+    parser.add_argument("-dm", "--detector-mode", help="Detector mode (lake or surface)", type=str, default="lake")
+    parser.add_argument("-xm", "--xs-mode", help="Cross section mode (CC or NC)", type=str, default="CC")
     args = parser.parse_args()
 
     simulation = MuonSimulation(prefix=args.tag,
                                 generator=args.generator,
                                 parent=args.meson,
                                 Nstart=args.Nstart,
-                                N=args.N)
+                                N=args.N,
+                                det_mode=args.detector_mode,
+                                xs_mode=args.xs_mode)
     print("SampleSecondaryMomenta")
     simulation.SampleSecondaryMomenta()
     print("CalculateLakeIntersectionsFromIP")
@@ -33,10 +37,12 @@ def main():
     print("CalculateLeptonSurfaceIntersectionFromIP")
     simulation.CalculateLeptonSurfaceIntersectionFromIP(args.interaction_point)
     print("DumpData")
-    simulation.DumpData(output_dir+"%s_%s_%s_%s_%d_%d.parquet"%(args.interaction_point,
+    simulation.DumpData(output_dir+"%s_%s_%s_%s_%s_%s_%d_%d.parquet"%(args.interaction_point,
                                                                 args.tag,
                                                                 args.generator,
                                                                 args.meson,
+                                                                args.detector_mode,
+                                                                args.xs_mode,
                                                                 args.Nstart,
                                                                 args.Nstart+args.N))
 
