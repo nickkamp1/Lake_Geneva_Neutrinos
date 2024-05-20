@@ -1,5 +1,6 @@
 __pycache__
 Figures/
 Resources/
+cluster/logging
 Data/
 .ipynb*
