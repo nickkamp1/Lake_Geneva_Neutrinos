@@ -1,8 +1,7 @@
 import numpy as np
 import sys
-forward_nu_flux_dir = "../forward-nu-flux-fit"
-sys.path.append(forward_nu_flux_dir)
-from Code import experiments
+geneva_dir = "/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/Lake_Geneva_Neutrinos/"
+forward_nu_flux_dir = "/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/forward-nu-flux-fit/"
 import pandas as pd
 
 from GeometryHelpers import *
@@ -11,8 +10,8 @@ import leptoninjector as LI
 from leptoninjector.interactions import DISFromSpline
 
 # Define some geometry objects that will be helpful 
-LHC_data = pd.read_parquet('Data/LHC_data.parquet')
-Lake_data = pd.read_parquet('Data/Lake_data.parquet')
+LHC_data = pd.read_parquet(geneva_dir+'Data/LHC_data.parquet')
+Lake_data = pd.read_parquet(geneva_dir+'Data/Lake_data.parquet')
 
 # Define the LHC circle
 LHC = Circle(np.array(LHC_data.loc['Point4',['X','Y','Z']]),
@@ -31,7 +30,7 @@ mn = 0.939565
 m_iso = 0.5*(mp+mn)
 
 # Define the relevant cross section files
-xsfiledir = "../DUNEAtmo/cross_sections/csms_differential_v1.0/"
+xsfiledir = geneva_dir+"../DUNEAtmo/cross_sections/csms_differential_v1.0/"
 
 nue = LI.dataclasses.Particle.ParticleType.NuE
 numu = LI.dataclasses.Particle.ParticleType.NuMu
@@ -72,8 +71,9 @@ def get_flux_data(prefix,generator,parent):
     data_dict['pz'] = np.sqrt(data_dict['E']**2  - data_dict['px']**2 - data_dict['py'] **2)
     
     df = pd.DataFrame(data=data_dict)
+    return df
     # shuffle rows 
-    return df.sample(frac=1).reset_index(drop=True)
+    # return df.sample(frac=1).reset_index(drop=True)
 
 # returns the muon range in m
 # rho is the material density in g/cm^3
@@ -83,14 +83,17 @@ def muon_range(E,rho=1):
 
 class MuonSimulation:
 
-    def __init__(self,infile=None,prefix=None,generator=None,parent=None):
+    def __init__(self,infile=None,prefix=None,generator=None,parent=None,Nstart=0,N=None,verbose=False):
         if infile is not None:
             self.data = pd.read_parquet(infile)
         elif None not in [prefix,generator,parent]:
             self.data = get_flux_data(prefix,generator,parent)
+            if N is not None:
+                self.data = self.data[Nstart:Nstart+N].reset_index()
         else:
             print('Insufficient input arguments. Exiting...')
             exit(0)
+        self.verbose = verbose
 
     def SampleSecondaryMomenta(self,N=None):
 
@@ -113,8 +116,8 @@ class MuonSimulation:
 
         if N is None: N = len(self.data)
         for i,ind in enumerate(self.data.index):
-            print("%d out of %d"%(i,N),end='\r')
-            if i>N: break
+            if self.verbose: print("%d out of %d"%(i,N),end='\r')
+            if i>=N: break
             if self.data['E'][ind] <= 10: continue
             primary_type = LI.dataclasses.Particle.ParticleType(int(self.data['PDG'][ind]))
             record.primary_momentum = [self.data['E'][ind],
@@ -184,7 +187,7 @@ class MuonSimulation:
         self.lake_intersections = []
         self.lake_intersections_lat_long = []
         for i,(int1,int2,nu_dir) in enumerate(zip(int1_list,int2_list,nu_dirs)):
-            print("%d out of %d"%(i,N),end='\r')
+            if self.verbose: print("%d out of %d"%(i,N),end='\r')
             ints = []
             ints_lat_long = []
             nu_dir_global = np.dot(R,nu_dir)
@@ -279,7 +282,7 @@ class MuonSimulation:
             for i in range(4): self.data['lake_distance%d'%i] = [np.linalg.norm(np.array(x) - x0) for x in self.data['lake_intersection%d'%i]]
 
         for i,ind in enumerate(self.data.index):
-            print("%d out of %d"%(i,N),end='\r')
+            if self.verbose: print("%d out of %d"%(i,N),end='\r')
             if i>N: break
             if self.data['E'][ind] <= 10: continue
             if self.data['PDG'][ind] > 0:
@@ -358,13 +361,13 @@ class MuonSimulation:
         weights = np.zeros(len(self.data))
 
         for i,ind in enumerate(self.data.index):
-            print("%d out of %d"%(i,N),end='\r')
+            if self.verbose: print("%d out of %d"%(i,N),end='\r')
             if i>N: break
             CosTheta = self.data['uz'][ind]
             nu_dist = beam_dist / CosTheta
             transverse_profile[i] = np.array([self.data['ux'][ind]*nu_dist,
                                               self.data['uy'][ind]*nu_dist])
-            weights[i] = self.data['wgt'][ind]*1000*lumi*len(self.data)/N
+            weights[i] = self.data['wgt'][ind]*1000*lumi
         self.data["nu_transverse_profile_x"] = transverse_profile[:,0]
         self.data["nu_transverse_profile_y"] = transverse_profile[:,1]
         self.data["nu_weight"] = weights
@@ -387,7 +390,7 @@ class MuonSimulation:
         muon_lengths = np.zeros(len(self.data))
 
         for i,ind in enumerate(self.data.index):
-            print("%d out of %d"%(i,N),end='\r')
+            if self.verbose: print("%d out of %d"%(i,N),end='\r')
             if i>N: break
             if np.abs(self.data['PDG'][ind]) != 14: continue #only accept numu
             nu_CosTheta = self.data['uz'][ind]
@@ -400,7 +403,7 @@ class MuonSimulation:
                                               self.data['uy'][ind]*DIS_dist + self.data['uy_lep'][ind]*mu_dist])
             muon_lengths[i] = mu_dist
             if mu_beam_dist<0: continue # backward-going muons get zero-weighted
-            weights[i] = self.data['wgt'][ind]*self.data['interaction_probability'][ind]*1000*lumi*len(self.data)/N
+            weights[i] = self.data['wgt'][ind]*self.data['interaction_probability'][ind]*1000*lumi
         self.data["muon_transverse_profile_x"] = transverse_profile[:,0]
         self.data["muon_transverse_profile_y"] = transverse_profile[:,1]
         self.data["muon_weights"] = weights

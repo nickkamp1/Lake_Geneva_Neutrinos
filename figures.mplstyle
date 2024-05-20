@@ -10,3 +10,4 @@ xtick.labelsize : 14
 ytick.labelsize : 14
 
 legend.fontsize: 14
+legend.title_fontsize: 14
