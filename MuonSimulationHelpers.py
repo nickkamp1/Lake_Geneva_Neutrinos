@@ -1,13 +1,13 @@
 import numpy as np
 import sys
-geneva_dir = "/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/Lake_Geneva_Neutrinos/"
-forward_nu_flux_dir = "/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/forward-nu-flux-fit/"
+geneva_dir = "./"
+forward_nu_flux_dir = "../forward-nu-flux-fit/"
 import pandas as pd
 
 from GeometryHelpers import *
 
-import leptoninjector as LI
-from leptoninjector.interactions import DISFromSpline
+import siren
+from siren.interactions import DISFromSpline
 
 # Define some geometry objects that will be helpful 
 LHC_data = pd.read_parquet(geneva_dir+'Data/LHC_data.parquet')
@@ -32,13 +32,13 @@ m_iso = 0.5*(mp+mn)
 # Define the relevant cross section files
 xsfiledir = geneva_dir+"../DUNEAtmo/cross_sections/csms_differential_v1.0/"
 
-nue = LI.dataclasses.Particle.ParticleType.NuE
-numu = LI.dataclasses.Particle.ParticleType.NuMu
-nutau = LI.dataclasses.Particle.ParticleType.NuTau
-nuebar = LI.dataclasses.Particle.ParticleType.NuEBar
-numubar = LI.dataclasses.Particle.ParticleType.NuMuBar
-nutaubar = LI.dataclasses.Particle.ParticleType.NuTauBar
-target_type = LI.dataclasses.Particle.ParticleType.Nucleon
+nue = siren.dataclasses.Particle.ParticleType.NuE
+numu = siren.dataclasses.Particle.ParticleType.NuMu
+nutau = siren.dataclasses.Particle.ParticleType.NuTau
+nuebar = siren.dataclasses.Particle.ParticleType.NuEBar
+numubar = siren.dataclasses.Particle.ParticleType.NuMuBar
+nutaubar = siren.dataclasses.Particle.ParticleType.NuTauBar
+target_type = siren.dataclasses.Particle.ParticleType.Nucleon
 
 DIS_xs = {}
 
@@ -118,12 +118,12 @@ class MuonSimulation:
 
     def SampleSecondaryMomenta(self,N=None):
 
-        random = LI.utilities.LI_random()
-        record = LI.dataclasses.InteractionRecord()
+        random = siren.utilities.LI_random()
+        record = siren.dataclasses.InteractionRecord()
         record.signature.target_type = target_type
         record.target_mass = m_iso
         #record.target_momentum = [m_iso,0,0,0]
-        sec_types = [LI.dataclasses.Particle.MuMinus,LI.dataclasses.Particle.Hadrons]
+        sec_types = [siren.dataclasses.Particle.MuMinus,siren.dataclasses.Particle.Hadrons]
         record.signature.secondary_types = sec_types
 
         E_lep = np.zeros(len(self.data))
@@ -140,12 +140,12 @@ class MuonSimulation:
             if self.verbose: print("%d out of %d"%(i,N),end='\r')
             if i>=N: break
             if self.data['E'][ind] <= 10: continue
-            primary_type = LI.dataclasses.Particle.ParticleType(int(self.data['PDG'][ind]))
+            primary_type = siren.dataclasses.Particle.ParticleType(int(self.data['PDG'][ind]))
             record.primary_momentum = [self.data['E'][ind],
                                        self.data['px'][ind],
                                        self.data['py'][ind],
                                        self.data['pz'][ind]]
-            xs_record = LI.dataclasses.CrossSectionDistributionRecord(record)
+            xs_record = siren.dataclasses.CrossSectionDistributionRecord(record)
             if self.data['PDG'][ind] > 0:
                 record.signature = self.DIS_nu.GetPossibleSignaturesFromParents(primary_type,target_type)[0]
                 self.DIS_nu.SampleFinalState(xs_record,random)
@@ -317,9 +317,9 @@ class MuonSimulation:
             if i>N: break
             if self.data['E'][ind] <= 10: continue
             if self.data['PDG'][ind] > 0:
-                xs = self.DIS_nu.TotalCrossSection(LI.dataclasses.Particle.ParticleType(int(self.data['PDG'][ind])),self.data['E'][ind])
+                xs = self.DIS_nu.TotalCrossSection(siren.dataclasses.Particle.ParticleType(int(self.data['PDG'][ind])),self.data['E'][ind])
             else:
-                xs = self.DIS_nubar.TotalCrossSection(LI.dataclasses.Particle.ParticleType(int(self.data['PDG'][ind])),self.data['E'][ind])
+                xs = self.DIS_nubar.TotalCrossSection(siren.dataclasses.Particle.ParticleType(int(self.data['PDG'][ind])),self.data['E'][ind])
             # build PDF
             in_earth = True
             distances = []
