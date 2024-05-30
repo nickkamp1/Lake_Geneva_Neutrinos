@@ -110,6 +110,61 @@ def plot_tangent_line(circle,x,crossing,limit=10000,Lake_Crossings=None,label=No
     axs[1].set_ylabel('Longitude [deg]')
     axs[2].set_ylabel('Elevation w.r.t. Lake [m]')
 
+def plot_tangent_elevation(circle,x,crossing,limit=10000,Lake_Crossings=None,IPlabel=None,color="black",detector_position=10000):
+
+    fig = plt.figure()
+    fig.set_size_inches(9,6)
+    dir0,dir1,dir2 = circle.tangent_line(x,crossing)
+    if(type(limit)==list):
+        trange = np.linspace(limit[0],limit[1],2*1000)
+    else: 
+        trange = np.linspace(-limit,limit,2*1000)
+    dir = dir0 #only consider unshifted beam for now
+    points = x.reshape(-1,1) + np.outer(dir,trange)
+    FASER_envelope = np.abs(0.125/480*trange)
+    earth_points = np.array([xyz_to_lat_long(*p) for p in points.transpose()])
+    elev_range = earth_points[:,2] - Lake_geneva_elevation
+    
+    pipe_detector_radius = 5
+    pipe_detector_length = 500
+    pipe_detector_mask = np.logical_and(trange>detector_position-pipe_detector_length/2,trange<detector_position+pipe_detector_length/2)
+    plt.fill_between(trange[pipe_detector_mask], elev_range[pipe_detector_mask] - pipe_detector_radius, elev_range[pipe_detector_mask] + pipe_detector_radius, color="black", alpha = 0.5, label = 'Pipe Detector')
+    plt.plot(trange[pipe_detector_mask],elev_range[pipe_detector_mask] - pipe_detector_radius,color="black",lw=3)
+    plt.plot(trange[pipe_detector_mask],elev_range[pipe_detector_mask] + pipe_detector_radius,color="black",lw=3)
+
+    panel_detector_radius = 10
+    plt.plot(18210.36*np.ones(2),[-panel_detector_radius,panel_detector_radius],color="black",label="Panel Detector")
+    
+
+    # Plot lake crossings:
+    pairs  = [[Lake_Crossings[i],Lake_Crossings[i+1]] for i in range(0,len(Lake_Crossings),2)]
+    prev_edge = trange[0]
+    for i,pair in enumerate(pairs):
+        diffs = (np.linalg.norm(np.array(pair[0])[None,:] - earth_points[:,0:2],axis=1),
+                 np.linalg.norm(np.array(pair[1])[None,:] - earth_points[:,0:2],axis=1))
+        
+        t_intersects = (trange[np.argmin(diffs[0])],
+                        trange[np.argmin(diffs[1])])
+        X = np.linspace(t_intersects[0],t_intersects[1],2)
+        plt.fill_between(X,-1e5 * np.ones_like(X), np.zeros_like(X),color='blue',alpha=0.4,label='Lake Geneva' if i==0 else None)
+        X = np.linspace(prev_edge,t_intersects[0],2)
+        plt.fill_between(X,-1e5 * np.ones_like(X), np.zeros_like(X),color=(0,1,0,0.2),label='Land' if i==0 else None)
+        prev_edge = t_intersects[1]
+    X = np.linspace(trange[0],trange[-1],2)
+    plt.fill_between(X,np.zeros_like(X),np.max(elev_range),color="lightskyblue",alpha=0.2)
+
+    plt.scatter([0],[xyz_to_lat_long(*x)[2] - Lake_geneva_elevation],marker='*',s=500,color=color,edgecolors="black",label="%s Interaction Point"%IPlabel,zorder=10)
+    plt.plot(trange,elev_range,color=color,label="Beam from %s"%IPlabel)
+    plt.fill_between(trange, elev_range - FASER_envelope, elev_range + FASER_envelope, color=color, alpha = 0.3, label = 'FASER envelope')
+    
+    plt.legend(loc="upper left",ncol=2)
+    plt.xlim(trange[0],trange[-1])
+    plt.ylim(np.min(earth_points[:,2] - Lake_geneva_elevation)-10,
+                    np.max(earth_points[:,2] - Lake_geneva_elevation))
+    plt.xlabel('Distance from interaction Point [m]')
+    plt.ylabel('Elevation w.r.t. Lake [m]')
+
+
 def plot_crossing_angle_impact(circle,x,crossing_angle,limit=10000,Lake_Crossings=None,label=None):
     fig = plt.figure(figsize=(6,4))
     dir = circle.tangent_line(x)
