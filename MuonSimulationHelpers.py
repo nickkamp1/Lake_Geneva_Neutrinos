@@ -91,6 +91,8 @@ class MuonSimulation:
                  N=None,
                  xs_mode="CC",
                  det_mode="lake",
+                 lake_center = 10000,
+                 lake_extent = 100,
                  verbose=False):
         if infile is not None:
             self.data = pd.read_parquet(infile)
@@ -106,6 +108,8 @@ class MuonSimulation:
             print("Invalid det mode %s, use lake or surface"%det_mode)
             exit(0)
         self.det_mode = det_mode
+        self.lake_center = lake_center # detector center in m
+        self.lake_extent = lake_extent # detector extent in m
         if xs_mode=="CC":
             self.DIS_nu = DIS_xs['nu_CC']
             self.DIS_nubar = DIS_xs['nubar_CC']
@@ -325,8 +329,11 @@ class MuonSimulation:
             distances = []
             densities = []
             if self.det_mode=="lake":
-                min_distance = (1+1e-3)*self.data['lake_distance0'][ind] # just past first lake intersection
-                max_distance = (1-1e-3)*self.data['lake_distance1'][ind] # just before second lake intersection
+                nu_detector_distance = self.lake_center / self.data['uz'][ind] # distance along neutrion line to detector center
+                min_distance = nu_detector_distance - (self.lake_extent/2.) # front of lake detector
+                max_distance = nu_detector_distance + (self.lake_extent/2.) # back of lake detector 
+                # min_distance = (1+1e-3)*self.data['lake_distance0'][ind] # just past first lake intersection
+                # max_distance = (1-1e-3)*self.data['lake_distance1'][ind] # just before second lake intersection
             elif self.det_mode=="surface":
                 nu_detector_distance = beam_surface_distance / self.data['uz'][ind] # distance along neutrino line to detector plane
                 max_distance = min(nu_detector_distance,self.data['surface_distance'][ind])

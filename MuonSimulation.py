@@ -13,6 +13,8 @@ def main():
     parser.add_argument("-ip", "--interaction-point", help="LHC Interaction Point", type=str, default="LHCb")
     parser.add_argument("-dm", "--detector-mode", help="Detector mode (lake or surface)", type=str, default="lake")
     parser.add_argument("-xm", "--xs-mode", help="Cross section mode (CC or NC)", type=str, default="CC")
+    parser.add_argument("-lc", "--lake-center", help="Center of lake detector along beam", type=str, default=10000)
+    parser.add_argument("-le", "--lake-extent", help="Extent of lake detector", type=str, default=100)
     args = parser.parse_args()
 
     simulation = MuonSimulation(prefix=args.tag,
@@ -37,14 +39,27 @@ def main():
     print("CalculateLeptonSurfaceIntersectionFromIP")
     simulation.CalculateLeptonSurfaceIntersectionFromIP(args.interaction_point)
     print("DumpData")
-    simulation.DumpData(output_dir+"%s_%s_%s_%s_%s_%s_%d_%d.parquet"%(args.interaction_point,
+    if args.xs_mode=="lake":
+        outfile = output_dir+"%s_%s_%s_%s_%s_%s_%d_%d_%d_%d.parquet"%(args.interaction_point,
+                                                                args.tag,
+                                                                args.generator,
+                                                                args.meson,
+                                                                args.detector_mode,
+                                                                args.xs_mode,
+                                                                args.lake_center,
+                                                                args.lake_extent,
+                                                                args.Nstart,
+                                                                args.Nstart+args.N)
+    else:
+        outfile = output_dir+"%s_%s_%s_%s_%s_%s_%d_%d.parquet"%(args.interaction_point,
                                                                 args.tag,
                                                                 args.generator,
                                                                 args.meson,
                                                                 args.detector_mode,
                                                                 args.xs_mode,
                                                                 args.Nstart,
-                                                                args.Nstart+args.N))
+                                                                args.Nstart+args.N)
+    simulation.DumpData(outfile)
 
 if __name__ == "__main__":
     main()
