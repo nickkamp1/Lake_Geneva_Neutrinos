@@ -3,7 +3,7 @@ figure.figsize: 8,6
 axes.titlesize : 24
 axes.labelsize : 18
 
-lines.linewidth : 3
+lines.linewidth : 2
 lines.markersize : 10
 
 xtick.labelsize : 16

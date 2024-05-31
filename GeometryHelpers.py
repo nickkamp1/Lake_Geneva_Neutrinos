@@ -82,6 +82,8 @@ def plot_tangent_line(circle,x,crossing,limit=10000,Lake_Crossings=None,label=No
     points = x.reshape(-1,1) + np.outer(dir,trange)
     FASER_envelope = np.abs(0.125/480*trange)
     earth_points = np.array([xyz_to_lat_long(*p) for p in points.transpose()])
+    det_idx = np.argmin(np.abs(trange-10000))
+    print("Detector lat/long/elevation:",earth_points[det_idx])
     axs[0].plot(trange,earth_points[:,0],color='black')
     axs[1].plot(trange,earth_points[:,1],color='black')
     elev_range = earth_points[:,2] - Lake_geneva_elevation
@@ -100,6 +102,7 @@ def plot_tangent_line(circle,x,crossing,limit=10000,Lake_Crossings=None,label=No
         axs[0].axvspan(t_intersects[0],t_intersects[1],color='blue',alpha=0.2)
         axs[1].axvspan(t_intersects[0],t_intersects[1],color='blue',alpha=0.2)
         X = np.linspace(t_intersects[0],t_intersects[1],100)
+        print(t_intersects)
         axs[2].fill_between(X,-1e5 * np.ones_like(X), np.zeros_like(X),color='blue',alpha=0.2,label='Lake Geneva' if i==0 else None)
     
     fig.subplots_adjust(hspace=0)
@@ -110,7 +113,7 @@ def plot_tangent_line(circle,x,crossing,limit=10000,Lake_Crossings=None,label=No
     axs[1].set_ylabel('Longitude [deg]')
     axs[2].set_ylabel('Elevation w.r.t. Lake [m]')
 
-def plot_tangent_elevation(circle,x,crossing,limit=10000,Lake_Crossings=None,IPlabel=None,color="black",detector_position=10000):
+def plot_tangent_elevation(circle,x,crossing,limit=10000,Lake_Crossings=None,IPlabel=None,color="black",pipe_position=10000,panel_position=18210.36):
 
     fig = plt.figure()
     fig.set_size_inches(9,6)
@@ -126,14 +129,18 @@ def plot_tangent_elevation(circle,x,crossing,limit=10000,Lake_Crossings=None,IPl
     elev_range = earth_points[:,2] - Lake_geneva_elevation
     
     pipe_detector_radius = 5
-    pipe_detector_length = 500
-    pipe_detector_mask = np.logical_and(trange>detector_position-pipe_detector_length/2,trange<detector_position+pipe_detector_length/2)
-    plt.fill_between(trange[pipe_detector_mask], elev_range[pipe_detector_mask] - pipe_detector_radius, elev_range[pipe_detector_mask] + pipe_detector_radius, color="black", alpha = 0.5, label = 'Pipe Detector')
-    plt.plot(trange[pipe_detector_mask],elev_range[pipe_detector_mask] - pipe_detector_radius,color="black",lw=3)
-    plt.plot(trange[pipe_detector_mask],elev_range[pipe_detector_mask] + pipe_detector_radius,color="black",lw=3)
+    pipe_detector_length = 100
+    pipe_idx = np.argmin(np.abs(trange-pipe_position))
+    pipe_detector_mask = np.logical_and(trange>pipe_position-pipe_detector_length/2,trange<pipe_position+pipe_detector_length/2)
+    # plt.fill_between(trange[pipe_detector_mask], elev_range[pipe_detector_mask] - pipe_detector_radius, elev_range[pipe_detector_mask] + pipe_detector_radius, color="black", alpha = 0.9, label = 'Pipe Detector')
+    # plt.plot(trange[pipe_detector_mask],elev_range[pipe_detector_mask] - pipe_detector_radius,color="black",lw=3)
+    # plt.plot(trange[pipe_detector_mask],elev_range[pipe_detector_mask] + pipe_detector_radius,color="black",lw=3)
+
+    plt.plot(pipe_position*np.ones(2),[elev_range[pipe_idx]-pipe_detector_radius,
+                                           elev_range[pipe_idx]+pipe_detector_radius],color="black",label="Pipe Detector",lw=3)
 
     panel_detector_radius = 10
-    plt.plot(18210.36*np.ones(2),[-panel_detector_radius,panel_detector_radius],color="black",label="Panel Detector")
+    plt.plot(panel_position*np.ones(2),[-panel_detector_radius,panel_detector_radius],color="grey",label="Panel Detector",lw=3)
     
 
     # Plot lake crossings:

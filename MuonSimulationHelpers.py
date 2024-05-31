@@ -1,7 +1,7 @@
 import numpy as np
 import sys
-geneva_dir = "./"
-forward_nu_flux_dir = "../forward-nu-flux-fit/"
+geneva_dir = "/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/Lake_Geneva_Neutrinos/"
+forward_nu_flux_dir = "/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/forward-nu-flux-fit/"
 import pandas as pd
 
 from GeometryHelpers import *
@@ -122,7 +122,7 @@ class MuonSimulation:
 
     def SampleSecondaryMomenta(self,N=None):
 
-        random = siren.utilities.LI_random()
+        random = siren.utilities.SIREN_random()
         record = siren.dataclasses.InteractionRecord()
         record.signature.target_type = target_type
         record.target_mass = m_iso

@@ -26,6 +26,14 @@ if [ -z ${XSModel+x} ]; then
     XSModel="CC"
 fi
 
+if [ -z ${LakeCenter+x} ]; then
+    LakeCenter=10000
+fi
+
+if [ -z ${LakeExtent+x} ]; then
+    LakeCenter=100
+fi
+
 if [ -z ${Nstart+x} ]; then
     Nstart=0
 fi
@@ -34,6 +42,6 @@ if [ -z ${N+x} ]; then
     N=50000
 fi
 
-CMD="python /n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/Lake_Geneva_Neutrinos/MuonSimulation.py -t LHC13 -g ${GEN} -m ${MESON} -ns ${Nstart} -n ${N} -dm ${DetModel} -xm ${XSModel}"
+CMD="python /n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/Lake_Geneva_Neutrinos/MuonSimulation.py -t LHC13 -g ${GEN} -m ${MESON} -ns ${Nstart} -n ${N} -dm ${DetModel} -xm ${XSModel} -lc ${LakeCenter} -le ${LakeExtent}"
 echo $CMD
 $CMD
