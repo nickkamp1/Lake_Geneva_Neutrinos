@@ -132,15 +132,15 @@ def plot_tangent_elevation(circle,x,crossing,limit=10000,Lake_Crossings=None,IPl
     pipe_detector_length = 100
     pipe_idx = np.argmin(np.abs(trange-pipe_position))
     pipe_detector_mask = np.logical_and(trange>pipe_position-pipe_detector_length/2,trange<pipe_position+pipe_detector_length/2)
-    # plt.fill_between(trange[pipe_detector_mask], elev_range[pipe_detector_mask] - pipe_detector_radius, elev_range[pipe_detector_mask] + pipe_detector_radius, color="black", alpha = 0.9, label = 'Pipe Detector')
-    # plt.plot(trange[pipe_detector_mask],elev_range[pipe_detector_mask] - pipe_detector_radius,color="black",lw=3)
-    # plt.plot(trange[pipe_detector_mask],elev_range[pipe_detector_mask] + pipe_detector_radius,color="black",lw=3)
+    plt.fill_between(trange[pipe_detector_mask], elev_range[pipe_detector_mask] - pipe_detector_radius, elev_range[pipe_detector_mask] + pipe_detector_radius, color="black", alpha = 0.9, label = 'Lake Detector')
+    plt.plot(trange[pipe_detector_mask],elev_range[pipe_detector_mask] - pipe_detector_radius,color="black",lw=3)
+    plt.plot(trange[pipe_detector_mask],elev_range[pipe_detector_mask] + pipe_detector_radius,color="black",lw=3)
 
-    plt.plot(pipe_position*np.ones(2),[elev_range[pipe_idx]-pipe_detector_radius,
-                                           elev_range[pipe_idx]+pipe_detector_radius],color="black",label="Pipe Detector",lw=3)
+    # plt.plot(pipe_position*np.ones(2),[elev_range[pipe_idx]-pipe_detector_radius,
+    #                                    elev_range[pipe_idx]+pipe_detector_radius],color="black",label="Lake Detector",lw=3)
 
     panel_detector_radius = 10
-    plt.plot(panel_position*np.ones(2),[-panel_detector_radius,panel_detector_radius],color="grey",label="Panel Detector",lw=3)
+    plt.plot(panel_position*np.ones(2),[-panel_detector_radius,panel_detector_radius],color="grey",label="Surface Detector",lw=3)
     
 
     # Plot lake crossings:
