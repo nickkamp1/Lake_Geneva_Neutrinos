@@ -132,12 +132,12 @@ def plot_tangent_elevation(circle,x,crossing,limit=10000,Lake_Crossings=None,IPl
     pipe_detector_length = 100
     pipe_idx = np.argmin(np.abs(trange-pipe_position))
     pipe_detector_mask = np.logical_and(trange>pipe_position-pipe_detector_length/2,trange<pipe_position+pipe_detector_length/2)
-    plt.fill_between(trange[pipe_detector_mask], elev_range[pipe_detector_mask] - pipe_detector_radius, elev_range[pipe_detector_mask] + pipe_detector_radius, color="black", alpha = 0.9, label = 'Lake Detector')
-    plt.plot(trange[pipe_detector_mask],elev_range[pipe_detector_mask] - pipe_detector_radius,color="black",lw=3)
-    plt.plot(trange[pipe_detector_mask],elev_range[pipe_detector_mask] + pipe_detector_radius,color="black",lw=3)
+    # plt.fill_between(trange[pipe_detector_mask], elev_range[pipe_detector_mask] - pipe_detector_radius, elev_range[pipe_detector_mask] + pipe_detector_radius, color="black", alpha = 0.9, label = 'Lake Detector')
+    # plt.plot(trange[pipe_detector_mask],elev_range[pipe_detector_mask] - pipe_detector_radius,color="black",lw=3)
+    # plt.plot(trange[pipe_detector_mask],elev_range[pipe_detector_mask] + pipe_detector_radius,color="black",lw=3)
 
-    # plt.plot(pipe_position*np.ones(2),[elev_range[pipe_idx]-pipe_detector_radius,
-    #                                    elev_range[pipe_idx]+pipe_detector_radius],color="black",label="Lake Detector",lw=3)
+    plt.plot(pipe_position*np.ones(2),[elev_range[pipe_idx]-pipe_detector_radius,
+                                       elev_range[pipe_idx]+pipe_detector_radius],color="black",label="Lake Detector",lw=3)
 
     panel_detector_radius = 10
     plt.plot(panel_position*np.ones(2),[-panel_detector_radius,panel_detector_radius],color="grey",label="Surface Detector",lw=3)
@@ -161,6 +161,7 @@ def plot_tangent_elevation(circle,x,crossing,limit=10000,Lake_Crossings=None,IPl
     plt.fill_between(X,np.zeros_like(X),np.max(elev_range),color="lightskyblue",alpha=0.2)
 
     plt.scatter([0],[xyz_to_lat_long(*x)[2] - Lake_geneva_elevation],marker='*',s=500,color=color,edgecolors="black",label="%s Interaction Point"%IPlabel,zorder=10)
+    print("LHCb interaction point:",xyz_to_lat_long(*x)[2] - Lake_geneva_elevation)
     plt.plot(trange,elev_range,color=color,label="Beam from %s"%IPlabel)
     plt.fill_between(trange, elev_range - FASER_envelope, elev_range + FASER_envelope, color=color, alpha = 0.3, label = 'FASER envelope')
     
