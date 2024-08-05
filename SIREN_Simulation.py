@@ -1,51 +1,59 @@
+import pandas as pd
+import numpy as np
+from MuonSimulationHelpers import get_flux_data
 import siren
-from siren.SIREN_Controller import SIREN_Controller
-import os
 
-# Number of events to inject
-events_to_inject = int(1e5)
+forward_nu_flux_dir = "/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/forward-nu-flux-fit/"
 
-# Expeirment to run
-experiment = "LakeGeneva"
+def PrepareSIRENInputFromLHCb(prefix,generator,parent):
+    
+    LHCb_depth = 34.97 #m
+    surface_crossing = 18210.36
+    theta = np.arccos(LHCb_depth/surface_crossing)
+    LHCb_position = siren.math.Vector3D([0,-LHCb_depth,0])
+    LHCb_direction = siren.math.Vector3D([0,np.cos(theta),np.sin(theta)])
 
-# Define the controller
-controller = SIREN_Controller(events_to_inject, experiment)
+    keys = ['PDG','hPDG','x0','y0','z0','thx','thy','E','wgt']
+    data = np.loadtxt(forward_nu_flux_dir + '/files/' + prefix + '_' + generator + '_' + parent + '_0.txt')
+    data_dict = {}
+    for k,col in zip(keys,data.T):
+        data_dict[k] = col
+    df = pd.DataFrame(data=data_dict)
 
-# Particle to inject
-primary_type = siren.dataclasses.Particle.ParticleType.NuMu
+    zdir = siren.math.Vector3D([0,0,1])
+    beam_rotation = siren.math.Quaternion.rotation_between(None,zdir,LHCb_direction)
 
-cross_section_model = "CSMSDISSplines"
+    x0 = []
+    y0 = []
+    z0 = []
+    px = []
+    py = []
+    pz = []
 
-xsfiledir = siren.utilities.get_cross_section_model_path(cross_section_model)
+    for i,row in df[['x0','y0','z0','thx','thy','E']].iterrows():
+        init_pos = siren.math.Vector3D([row.x0,row.y0,row.z0])
+        init_pos_SIREN = beam_rotation.rotate(init_pos,False)
+        dx = np.sin(row.thx)
+        dy = np.sin(row.thy)
+        init_dir = siren.math.Vector3D([dx,dy,np.sqrt(1 - dx**2 - dy**2)])
+        init_dir_SIREN = beam_rotation.rotate(init_dir,False)
+        x0.append(init_pos_SIREN.GetX())
+        y0.append(init_pos_SIREN.GetY() - LHCb_depth)
+        z0.append(init_pos_SIREN.GetZ())
+        px.append(row.E*init_dir_SIREN.GetX())
+        py.append(row.E*init_dir_SIREN.GetY())
+        pz.append(row.E*init_dir_SIREN.GetZ())
 
-# Cross Section Model
-target_type = siren.dataclasses.Particle.ParticleType.Nucleon
+    df['x0'] = x0
+    df['y0'] = y0
+    df['z0'] = z0
 
-DIS_xs = siren.interactions.DISFromSpline(
-    os.path.join(xsfiledir, "dsdxdy_nu_CC_iso.fits"),
-    os.path.join(xsfiledir, "sigma_nu_CC_iso.fits"),
-    [primary_type],
-    [target_type], "m"
-)
-
-primary_xs = siren.interactions.InteractionCollection(primary_type, [DIS_xs])
-controller.SetInteractions(primary_xs)
-
-# Primary distributions
-primary_injection_distributions = {}
-primary_physical_distributions = {}
-
-primary_external_dist = siren.distributions.PrimaryExternalDistribution("Data/SIREN_Input/LHC13_EPOSLHC_light_0.txt")
-primary_injection_distributions["external"] = primary_external_dist
-
-position_distribution = siren.distributions.PrimaryPhysicalVertexDistribution()
-primary_injection_distributions["position"] = position_distribution
-
-# SetProcesses
-controller.SetProcesses(
-    primary_type, primary_injection_distributions, primary_physical_distributions
-)
-
-controller.Initialize()
-
-events = controller.GenerateEvents()
+    df['px'] = px
+    df['py'] = py
+    df['pz'] = pz
+    
+    return df
+        
+    
+    
+    
