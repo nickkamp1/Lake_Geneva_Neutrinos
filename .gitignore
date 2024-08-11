@@ -2,5 +2,8 @@ __pycache__
 Figures/
 Resources/
 cluster/logging
+cluster/SIREN/logging
 Data/
 .ipynb*
+Cosmics/*.txt
+Cosmics/EcoRunner
