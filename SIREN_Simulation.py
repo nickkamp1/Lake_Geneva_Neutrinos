@@ -67,14 +67,16 @@ def RunLHCbMuonSimulation(prefix,generator,parent,primary,
                           save_int_probs=True,
                           save_int_params=True)
 
+    data = ak.from_parquet("%s.parquet"%outfile)
     weights = np.array(np.squeeze(data.wgt) * lumi * 1000 * np.prod(data.int_probs,axis=-1))
     weights *= num_input_events / events_to_inject # correct for sampled events
     data["weights"] = weights
 
-
-    # Muon intersection calculations
-    if experiment=="GenevaSurface":
-        data = ak.from_parquet("%s.parquet"%outfile)
+    if experiment=="GenevaLake":
+        # write output array
+        ak.to_parquet(data,"%s.parquet"%outfile)
+    elif experiment=="GenevaSurface":
+         # Do muon intersection calculations first
 
         mu_vertex = np.squeeze(data.vertex)
         muon_momenta = np.array(np.squeeze(data.secondary_momenta[:,:,0]))

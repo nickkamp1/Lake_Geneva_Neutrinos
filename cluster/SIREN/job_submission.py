@@ -6,7 +6,7 @@ light_generators = ["EPOSLHC","DPMJET",
 charm_generators = ["BKSS","BKRS",
                     "SIBYLL","BDGJKR","MS"]
 XSModel="CC"
-N = int(1e2)
+N = int(1e7)
 SIREN_dir = "/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/Lake_Geneva_Neutrinos/Data/SIREN"
 experiment="GenevaLake"
 primaries = [12,-12,
