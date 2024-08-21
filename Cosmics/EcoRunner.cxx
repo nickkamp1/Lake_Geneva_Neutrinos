@@ -58,6 +58,7 @@ int main(int argc, char **argv) {
 
 
     for (auto i = 0; i < N; ++i) {
+        if (i%(N/100)==0) std::cout << i << " out of " << N << std::endl;
         muonGen.Generate();
         muon_position = muonGen.GetGenerationPosition();
         double muon_theta = muonGen.GetGenerationTheta();
@@ -67,6 +68,7 @@ int main(int argc, char **argv) {
         if (hit1 && !hit2) ++hit1_count;
         else if (!hit1 && hit2) ++hit2_count;
         else if (hit1 && hit2) ++hitboth_count;
+        if (!hit1 && !hit2) continue;
         out << (hit1 && !hit2) << " " << (!hit1 && hit2) << " " << (hit1 && hit2) << " ";
         out << time_and_intersections[0][0] << " " << time_and_intersections[0][1] << " ";
         out << time_and_intersections[1][0] << " " << time_and_intersections[1][1] << " " << time_and_intersections[1][2] << " ";
