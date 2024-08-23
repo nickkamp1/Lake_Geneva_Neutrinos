@@ -143,13 +143,11 @@ def RunLHCbMuonSimulation(prefix,generator,parent,primary,
         data["muon_max_col_depth"] = [muon_depth(siren.dataclasses.Particle.NuMu, muE)
                                     for muE in muon_momenta[:,0]]
 
-        for panel in [1,2,3]:
-            data["panel%d_muon_survival"%panel] = data["panel%d_int_coldepths"%panel] < data["muon_max_col_depth"]
-            data["panel%d_hit_mask_muon_survival"%panel] = np.logical_and(data["panel%d_hit_mask"%panel],
-                                                                        np.any(data["panel%d_muon_survival"%panel],axis=-1))
-        data["hit_mask_muon_survival"] = np.logical_or.reduce((data["panel1_hit_mask_muon_survival"],
-                                                            data["panel2_hit_mask_muon_survival"],
-                                                            data["panel3_hit_mask_muon_survival"]))
+        for ip in panels.keys():
+            data["panel%d_muon_survival"%ip] = data["panel%d_int_coldepths"%ip] < data["muon_max_col_depth"]
+            data["panel%d_hit_mask_muon_survival"%ip] = np.logical_and(data["panel%d_hit_mask"%ip],
+                                                                        np.any(data["panel%d_muon_survival"%ip],axis=-1))
+        data["hit_mask_muon_survival"] = np.logical_or.reduce((data["panel%d_hit_mask_muon_survival"%ip] for ip in panels.keys()))
 
 
         ak.to_parquet(data[data["hit_mask"]==1],"%s.parquet"%outfile)

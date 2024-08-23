@@ -7,3 +7,7 @@ Data/
 .ipynb*
 Cosmics/*.txt
 Cosmics/EcoRunner
+Cosmics/MuonSim
+Cosmics/MuonSimPrototype
+.DS*
+.vscode/
