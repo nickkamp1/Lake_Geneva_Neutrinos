@@ -9,8 +9,8 @@
 
 EMLog::TLogLevel EMLog::ReportingLevel = WARNING;
 
-double plane_width = 24.4;
-double plane_height = 7.77;
+double plane_width = 12.2;//24.4;
+double plane_height = 2.58;//7.77;
 double plane_separation = 2.44;
 
 std::vector<std::vector<double>> getIntersections (std::array<double, 3>& x0, std::array<double, 3>& dir, bool & hit1, bool & hit2) {

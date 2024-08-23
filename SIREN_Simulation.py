@@ -83,46 +83,38 @@ def RunLHCbMuonSimulation(prefix,generator,parent,primary,
         muon_momentum = np.array(np.linalg.norm(muon_momenta[:,1:],axis=1))
         mu_dir = muon_momenta[:,1:] / np.expand_dims(muon_momentum,-1)
 
-        panel_1 = controller.detector_model.GetSector("panel_1")
-        panel_2 = controller.detector_model.GetSector("panel_2")
-        panel_3 = controller.detector_model.GetSector("panel_3")
+        panels = {
+            0:controller.detector_model.GetSector("prototype"),
+            # 1:controller.detector_model.GetSector("panel_1"),
+            # 2:controller.detector_model.GetSector("panel_2"),
+            # 3:controller.detector_model.GetSector("panel_3")
+            }
 
         def GetPanelIntersections(location, direction):
             _loc = siren.math.Vector3D(location)
             _loc_detector = controller.detector_model.GeoPositionToDetPosition(siren.detector.GeometryPosition(_loc)).get()
             _dir = siren.math.Vector3D(direction)
-            panel_intersections = {1:[],
-                                2:[],
-                                3:[]}
-            panel_distances = {1:[],
-                            2:[],
-                            3:[]}
-            panel_columndepths = {1:[],
-                                2:[],
-                                3:[]}
+            panel_intersections = {}
+            panel_distances = {}
+            panel_columndepths = {}
 
-            for ip,panel in enumerate([panel_1,panel_2,panel_3]):
+            for ip,panel in panels.items():
+                panel_intersections[ip] = []
+                panel_distances[ip] = []
+                panel_columndepths[ip] = []
                 for intersection in panel.geo.Intersections(_loc,_dir):
-                    panel_intersections[ip+1].append([intersection.position.GetX(),
+                    panel_intersections[ip].append([intersection.position.GetX(),
                                                     intersection.position.GetY(),
                                                     intersection.position.GetZ()])
-                    panel_distances[ip+1].append(intersection.distance)
+                    panel_distances[ip].append(intersection.distance)
                     int_loc_dectector = controller.detector_model.GeoPositionToDetPosition(siren.detector.GeometryPosition(intersection.position)).get()
-                    panel_columndepths[ip+1].append(controller.detector_model.GetColumnDepthInCGS(_loc_detector,int_loc_dectector))
+                    panel_columndepths[ip].append(controller.detector_model.GetColumnDepthInCGS(_loc_detector,int_loc_dectector))
             return panel_intersections,panel_distances,panel_columndepths
 
-        panel_ints = {1:[],
-                    2:[],
-                    3:[]}
-        panel_dist = {1:[],
-                    2:[],
-                    3:[]}
-        panel_cdep = {1:[],
-                    2:[],
-                    3:[]}
-        hit_mask = {1:[],
-                    2:[],
-                    3:[]}
+        panel_ints = {ip:[] for ip in panels.keys()}
+        panel_dist = {ip:[] for ip in panels.keys()}
+        panel_cdep = {ip:[] for ip in panels.keys()}
+        hit_mask = {ip:[] for ip in panels.keys()}
         hit_mask_tot = []
         for mv,md in zip(mu_vertex,mu_dir):
             p_ints,p_dist,p_cdep = GetPanelIntersections(mv,md)
