@@ -120,7 +120,7 @@ def plot_tangent_elevation(fig,circle,x,crossing,limit=10000,Lake_Crossings=None
         trange = np.linspace(limit[0],limit[1],2*1000)
     else: 
         trange = np.linspace(-limit,limit,2*1000)
-    dir = dir0 #only consider unshifted beam for now
+    dir = dir2 #only consider unshifted beam for now
     points = x.reshape(-1,1) + np.outer(dir,trange)
     if flip: points = x.reshape(-1,1) + np.outer(dir,-trange)
     FASER_envelope = np.abs(0.125/480*trange)
@@ -155,7 +155,7 @@ def plot_tangent_elevation(fig,circle,x,crossing,limit=10000,Lake_Crossings=None
         t_intersects = (trange[np.argmin(diffs[0])],
                         trange[np.argmin(diffs[1])])
         X = np.linspace(t_intersects[0],t_intersects[1],2)
-        plt.fill_between(X,-1e5 * np.ones_like(X), np.zeros_like(X),color='blue',alpha=0.4,label='Lake Geneva' if i==0 else None)
+        plt.fill_between(X,-200 * np.ones_like(X), np.zeros_like(X),color='blue',alpha=0.4,label='Lake Geneva' if i==0 else None)
         X = np.linspace(prev_edge,t_intersects[0],2)
         if i==0:
             y = max(0,(y0-Lake_geneva_elevation)*(1 - X[0]/X[1]))
@@ -243,9 +243,11 @@ def plot_tangent_line_lat_long(circle,x,crossing,limit=10000,N=1000,**kwargs):
     
     dir0,dir1,dir2 = circle.tangent_line(x,crossing)
     lines = []
+    if type(limit)==list: limits = limit
+    else: limits = [-limit,limit]
     for dir in [dir0,dir1,dir2]:
         if dir is None: continue
-        trange = np.linspace(-limit,limit,2*N+1)
+        trange = np.linspace(limits[0],limits[1],2*N+1)
         points = x.reshape(-1,1) + np.outer(dir,trange)
         earth_points = np.array([xyz_to_lat_long(*p) for p in points.transpose()])
         lines.append([earth_points[N],earth_points])
