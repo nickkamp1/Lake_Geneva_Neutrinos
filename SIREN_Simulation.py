@@ -4,7 +4,6 @@ import os
 import argparse
 import numpy as np
 import awkward as ak
-import pandas as pd
 
 SIREN_dir = "/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/Lake_Geneva_Neutrinos/Data/SIREN"
 
@@ -19,7 +18,8 @@ def RunNeutrinoSimulation(prefix,generator,parent,primary,
     else:
         print("Experiment %s not valid"%experiment)
         return
-    
+    IP_tag = experiment.replace("%s_"%experiment_prefix,"")
+
     # Define the controller
     controller = SIREN_Controller(events_to_inject, experiment)
 
@@ -49,19 +49,10 @@ def RunNeutrinoSimulation(prefix,generator,parent,primary,
     primary_injection_distributions = {}
     primary_physical_distributions = {}
 
-    siren_input_file = "%s/Input/%s_%s_%s_%d.txt"%(SIREN_dir,prefix,generator,parent,primary)
-    idf = pd.read_csv(siren_input_file)
-    IP_tag = experiment.replace("%s_"%experiment_prefix,"")
-    idf['x0'] = ['x0_%s'%IP_tag]
-    idf['y0'] = ['y0_%s'%IP_tag]
-    idf['z0'] = ['z0_%s'%IP_tag]
-    idf['px'] = ['px_%s'%IP_tag]
-    idf['py'] = ['py_%s'%IP_tag]
-    idf['pz'] = ['pz_%s'%IP_tag]
-    idf.to_csv("
+    siren_input_file = "%s/Input/%s_%s_%s_%d_%s.txt"%(SIREN_dir,prefix,generator,parent,primary,IP_tag)
     assert(os.path.isfile(siren_input_file))
-    
-    with open(siren_input_file, "rbU") as f:
+
+    with open(siren_input_file, "rb") as f:
         num_input_events = sum(1 for _ in f) - 1
 
     primary_external_dist = siren.distributions.PrimaryExternalDistribution(siren_input_file)
@@ -91,10 +82,10 @@ def RunNeutrinoSimulation(prefix,generator,parent,primary,
     weights *= num_input_events / events_to_inject # correct for sampled events
     data["weights"] = weights
 
-    if experiment=="GenevaLake":
+    if experiment_prefix=="UNDINE":
         # write output array
         ak.to_parquet(data,"%s.parquet"%outfile)
-    elif experiment=="GenevaSurface":
+    elif experiment_prefix=="SINE":
          # Do muon intersection calculations first
 
         mu_vertex = np.squeeze(data.vertex)
@@ -103,10 +94,10 @@ def RunNeutrinoSimulation(prefix,generator,parent,primary,
         mu_dir = muon_momenta[:,1:] / np.expand_dims(muon_momentum,-1)
 
         panels = {
-            0:controller.detector_model.GetSector("prototype"),
-            # 1:controller.detector_model.GetSector("panel_1"),
-            # 2:controller.detector_model.GetSector("panel_2"),
-            # 3:controller.detector_model.GetSector("panel_3")
+            # 0:controller.detector_model.GetSector("prototype"),
+            1:controller.detector_model.GetSector("panel_1"),
+            2:controller.detector_model.GetSector("panel_2"),
+            3:controller.detector_model.GetSector("panel_3")
             }
 
         def GetPanelIntersections(location, direction):
@@ -165,8 +156,8 @@ def RunNeutrinoSimulation(prefix,generator,parent,primary,
         for ip in panels.keys():
             data["panel%d_muon_survival"%ip] = data["panel%d_int_coldepths"%ip] < data["muon_max_col_depth"]
             data["panel%d_hit_mask_muon_survival"%ip] = np.logical_and(data["panel%d_hit_mask"%ip],
-                                                                        np.any(data["panel%d_muon_survival"%ip],axis=-1))
-        data["hit_mask_muon_survival"] = np.logical_or.reduce((data["panel%d_hit_mask_muon_survival"%ip] for ip in panels.keys()))
+                                                                       np.any(data["panel%d_muon_survival"%ip],axis=-1))
+        data["hit_mask_muon_survival"] = np.logical_or.reduce(tuple(data["panel%d_hit_mask_muon_survival"%ip] for ip in panels.keys()))
 
 
         ak.to_parquet(data[data["hit_mask"]==1],"%s.parquet"%outfile)
@@ -359,7 +350,7 @@ def RunLHCbHNLSimulation(prefix,generator,parent,
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--case', type=str, help='simulation case (muon/hnl)', default='muon')
+    parser.add_argument('--case', type=str, help='simulation case (neutrino/hnl)', default='neutrino')
     parser.add_argument('--primary', type=int, help='simulation primary PDG code', default=14)
     parser.add_argument('-p','--prefix', type=str, help='forward-nu-flux prefix')
     parser.add_argument('-g','--generator', type=str, help='forward-nu-flux generator')
@@ -369,8 +360,8 @@ if __name__ == '__main__':
     parser.add_argument('-e', '--experiment', type=str, default='GenevaSurface', help='experiment name (GenevaLake or GenevaSurface)')
 
     args = parser.parse_args()
-    if args.case=='muon':
-        RunLHCbMuonSimulation(args.prefix,args.generator,args.parent,args.primary,
+    if args.case=='neutrino':
+        RunNeutrinoSimulation(args.prefix,args.generator,args.parent,args.primary,
                               args.events_to_inject,args.output_file,args.experiment)
     elif args.case=='hnl':
         RunLHCbHNLSimulation(args.prefix,args.generator,args.parent,

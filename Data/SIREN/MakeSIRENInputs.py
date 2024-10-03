@@ -13,12 +13,12 @@ fiducial_length = 5000 # m
 forward_nu_flux_dir = "/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/forward-nu-flux-fit/"
 
 def PrepareSIRENInputFromIP(prefix,generator,parent,IPkeys,angles,surface_crossings):
-    
+
     # compute different quantities related to each IP
     angles = {k:a for k,a in zip(IPkeys,angles)}
     surface_crossings = {k:sc for k,sc in zip(IPkeys,surface_crossings)}
     depths = {k:surface_crossings[k]*np.sin(angles[k]) for k in IPkeys}
-    beam_directions = {k:siren.math.Vector3D([0,np.cos(angles[k]),np.sin(angles[k])]) for k in IPkeys}
+    beam_directions = {k:siren.math.Vector3D([0,np.sin(angles[k]),np.cos(angles[k])]) for k in IPkeys}
     zdir = siren.math.Vector3D([0,0,1])
     beam_rotations = {k:siren.math.Quaternion.rotation_between(None,zdir,beam_directions[k]) for k in IPkeys}
 
@@ -57,14 +57,14 @@ def PrepareSIRENInputFromIP(prefix,generator,parent,IPkeys,angles,surface_crossi
 
     for k in IPkeys:
         dfs[k] = df.copy()
-        
+
         dfs[k]['x0'] = x0[k]
         dfs[k]['y0'] = y0[k]
         dfs[k]['z0'] = z0[k]
         dfs[k]['px'] = px[k]
         dfs[k]['py'] = py[k]
         dfs[k]['pz'] = pz[k]
-    
+
     return dfs
 
 LHC_data = pd.read_parquet('../LHC_data_official.parquet')
@@ -90,21 +90,27 @@ surface_exits = {"LHCb_South":np.array([minsec_to_dec(46,7,6.6649),minsec_to_dec
                  "ATLAS_West":np.array([minsec_to_dec(46,16,56.7102),minsec_to_dec(5,42,48.0509),748.53]),
                  "ATLAS_East":np.array([minsec_to_dec(45,59,59.5943),minsec_to_dec(8,10,8.1070),717.94])}
 
-lake_intersections = {"LHCb_1":np.array([minsec_to_dec(46,22,15.2013),minsec_to_dec(6,22,39.0901),372-82]),
-                      "LHCb_2":np.array([minsec_to_dec(46,30,12.1910),minsec_to_dec(6,40,05.5942),372-13.3])}
+lake_intersections = {"LHCb_North":[25960.99,52669.70], # calculated from official LHC coordinates
+                      "CMS_East":[7503.75,11905.95] # calculated from tangents to the LHC circle
+                      }
 
 with open('Geometry/SINE_Template.dat','r') as f:
-    template = f.read()
+    sine_template = f.read()
+
+with open('Geometry/UNDINE_Template.dat','r') as f:
+    undine_template = f.read()
 
 # populate each of the geometry files
 IPkeys = []
 angles = []
 surface_crossings = []
-for exit_point,se in surface_exits.items():
+
+# first the SINE detectors
+for IP,se in surface_exits.items():
     surface_loc = np.array(lat_long_to_xyz(*se))
     IP_loc = None
     for k in list(LHC_data.index):
-        if k in exit_point:
+        if k in IP:
             IP_loc = np.array(LHC_data.loc[k,['X','Y','Z']])
     assert(IP_loc is not None)
     surface_normal_dir = surface_loc / np.linalg.norm(surface_loc)
@@ -112,15 +118,15 @@ for exit_point,se in surface_exits.items():
     surface_exit_distance = np.linalg.norm(beam_exit_displacement)
     beam_exit_dir = beam_exit_displacement / surface_exit_distance
     surface_exit_angle = np.pi/2 - np.arccos(np.dot(beam_exit_dir,surface_normal_dir))
-    IPkeys.append(exit_point)
+    IPkeys.append(IP)
     angles.append(surface_exit_angle)
     surface_crossings.append(surface_exit_distance)
     box2_z = np.cos(surface_exit_angle) * (surface_exit_distance + 3.885/np.sin(surface_exit_angle))
     prototype_z = np.cos(surface_exit_angle) * (surface_exit_distance + 1.295/np.sin(surface_exit_angle))
-    print("%s: %2.1f km from IP, exits at %2.2f deg w.r.t. surface at elevation of %2.2f m"%(exit_point,surface_exit_distance/1e3,(180/np.pi)*surface_exit_angle,se[-1]))
-    SINE_outfile_name = "Geometry/SINE_%s.dat"%exit_point
+    print("%s: %2.1f km from IP, exits at %2.2f deg w.r.t. surface at elevation of %2.2f m"%(IP,surface_exit_distance/1e3,(180/np.pi)*surface_exit_angle,se[-1]))
+    SINE_outfile_name = "Geometry/SINE_%s.dat"%IP
     with open(SINE_outfile_name,"w") as f:
-        _template = template.format(exit_point=exit_point,
+        _template = sine_template.format(exit_point=IP,
                                     surface_exit_distance=surface_exit_distance,
                                     surface_exit_angle=surface_exit_angle,
                                     box1_z=box2_z - detector_separation,
@@ -133,7 +139,43 @@ for exit_point,se in surface_exits.items():
                                     prototype_fiducial_length=fiducial_length)
         f.write(_template)
 
-        
+
+# next the UNDINE detectors
+for IP,lake_distances in lake_intersections.items():
+
+    surface_loc = np.array(lat_long_to_xyz(*surface_exits[IP]))
+    IP_loc = None
+    for k in list(LHC_data.index):
+        if k in IP:
+            IP_loc = np.array(LHC_data.loc[k,['X','Y','Z']])
+    assert(IP_loc is not None)
+    beam_exit_displacement = surface_loc - IP_loc
+    surface_exit_distance = np.linalg.norm(beam_exit_displacement)
+    beam_exit_dir = beam_exit_displacement / surface_exit_distance
+    surface_normal_dir = surface_loc / np.linalg.norm(surface_loc)
+    surface_exit_angle = np.pi/2 - np.arccos(np.dot(beam_exit_dir,surface_normal_dir))
+
+    lake_intersection_distance_1,lake_intersection_distance_2 = lake_distances
+    detector_distance = (lake_intersection_distance_1 + lake_intersection_distance_2)/2
+    lake_z_1 = lake_intersection_distance_1*np.cos(surface_exit_angle)
+    lake_z_2 = lake_intersection_distance_2*np.cos(surface_exit_angle)
+    lake_length = lake_z_2 - lake_z_1
+    lake_z = (lake_z_1 + lake_z_2)/2
+    detector_z = lake_z
+    detector_depth = np.sin(surface_exit_angle) * (detector_distance - surface_exit_distance)
+
+    UNDINE_outfile_name = "Geometry/UNDINE_%s.dat"%IP
+    with open(UNDINE_outfile_name,"w") as f:
+        _template = undine_template.format(exit_point=IP,
+                                    lake_intersection_distance_1=lake_intersection_distance_1,
+                                    lake_intersection_distance_2=lake_intersection_distance_2,
+                                    lake_z=lake_z,
+                                    lake_length=lake_length,
+                                    detector_depth=detector_depth,
+                                    detector_z=detector_z)
+        f.write(_template)
+
+
 # Now let's make the SIREN input text files for each beamline
 forward_flux_files = {
     "LHC13":{
@@ -172,4 +214,3 @@ for prefix,parent_dict in forward_flux_files.items():
                     if not os.path.isfile(siren_input_file):
                         print("Preparing",siren_input_file)
                         flux_data.query("PDG==@primary").to_csv(siren_input_file,index=False)
-    

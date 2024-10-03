@@ -38,6 +38,6 @@ if [ -z ${EXPERIMENT+x} ]; then
     EXPERIMENT="GenevaSurface"
 fi
 
-CMD="python /n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/Lake_Geneva_Neutrinos/SIREN_Simulation.py --case muon --primary ${PRIMARY} -p LHC13 -g ${GEN} -m ${MESON} -n ${N} -o ${OUTPUT} -e ${EXPERIMENT}"
+CMD="python /n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/Lake_Geneva_Neutrinos/SIREN_Simulation.py --case neutrino --primary ${PRIMARY} -p LHC13 -g ${GEN} -m ${MESON} -n ${N} -o ${OUTPUT} -e ${EXPERIMENT}"
 echo $CMD
 $CMD

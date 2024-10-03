@@ -154,6 +154,7 @@ def plot_tangent_elevation(fig,circle,x,crossing,limit=10000,Lake_Crossings=None
         
         t_intersects = (trange[np.argmin(diffs[0])],
                         trange[np.argmin(diffs[1])])
+        print("Lake intersection distance %d: %2.2f, %2.2f"%(i,t_intersects[0],t_intersects[1]))
         X = np.linspace(t_intersects[0],t_intersects[1],2)
         plt.fill_between(X,-200 * np.ones_like(X), np.zeros_like(X),color='blue',alpha=0.4,label='Lake Geneva' if i==0 else None)
         X = np.linspace(prev_edge,t_intersects[0],2)

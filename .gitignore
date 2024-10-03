@@ -1,7 +1,7 @@
 __pycache__
 Figures/
 Resources/
-cluster/logging
+cluster/homebrew/logging
 cluster/SIREN/logging
 Data/
 .ipynb*
