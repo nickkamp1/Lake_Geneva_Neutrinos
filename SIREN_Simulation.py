@@ -4,13 +4,22 @@ import os
 import argparse
 import numpy as np
 import awkward as ak
+import pandas as pd
 
 SIREN_dir = "/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/Lake_Geneva_Neutrinos/Data/SIREN"
 
-def RunLHCbMuonSimulation(prefix,generator,parent,primary,
+def RunNeutrinoSimulation(prefix,generator,parent,primary,
                           events_to_inject,outfile,
-                          experiment="GemevaSurface",lumi=3000):
+                          experiment,lumi=3000):
 
+    if "SINE" in experiment:
+        experiment_prefix = "SINE"
+    elif "UNDINE" in experiment:
+        experiment_prefix = "UNDINE"
+    else:
+        print("Experiment %s not valid"%experiment)
+        return
+    
     # Define the controller
     controller = SIREN_Controller(events_to_inject, experiment)
 
@@ -40,8 +49,18 @@ def RunLHCbMuonSimulation(prefix,generator,parent,primary,
     primary_injection_distributions = {}
     primary_physical_distributions = {}
 
-    siren_input_file = "%s/Input/LHCb_%s_%s_%s_%d.txt"%(SIREN_dir,prefix,generator,parent,primary)
+    siren_input_file = "%s/Input/%s_%s_%s_%d.txt"%(SIREN_dir,prefix,generator,parent,primary)
+    idf = pd.read_csv(siren_input_file)
+    IP_tag = experiment.replace("%s_"%experiment_prefix,"")
+    idf['x0'] = ['x0_%s'%IP_tag]
+    idf['y0'] = ['y0_%s'%IP_tag]
+    idf['z0'] = ['z0_%s'%IP_tag]
+    idf['px'] = ['px_%s'%IP_tag]
+    idf['py'] = ['py_%s'%IP_tag]
+    idf['pz'] = ['pz_%s'%IP_tag]
+    idf.to_csv("
     assert(os.path.isfile(siren_input_file))
+    
     with open(siren_input_file, "rbU") as f:
         num_input_events = sum(1 for _ in f) - 1
 

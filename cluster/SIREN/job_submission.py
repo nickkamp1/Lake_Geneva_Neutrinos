@@ -8,7 +8,7 @@ charm_generators = ["BKSS","BKRS",
 XSModel="CC"
 N = int(1e7)
 SIREN_dir = "/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/Lake_Geneva_Neutrinos/Data/SIREN"
-experiment="GenevaLake"
+experiment="GenevaSurface"
 primaries = [12,-12,
              14,-14,
              16,-16]
