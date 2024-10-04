@@ -9,7 +9,7 @@ SIREN_dir = "/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/Lake_
 
 def RunNeutrinoSimulation(prefix,generator,parent,primary,
                           events_to_inject,outfile,
-                          experiment,lumi=3000):
+                          experiment,xs_mode="CC",lumi=3000):
 
     if "SINE" in experiment:
         experiment_prefix = "SINE"
@@ -34,8 +34,8 @@ def RunNeutrinoSimulation(prefix,generator,parent,primary,
     target_type = siren.dataclasses.Particle.ParticleType.Nucleon
 
     DIS_xs = siren.interactions.DISFromSpline(
-        os.path.join(xsfiledir, "dsdxdy_nu_CC_iso.fits"),
-        os.path.join(xsfiledir, "sigma_nu_CC_iso.fits"),
+        os.path.join(xsfiledir, "dsdxdy_nu_%s_iso.fits"%xs_mode),
+        os.path.join(xsfiledir, "sigma_nu_%s_iso.fits"%xs_mode),
         [primary_type],
         [target_type], "m"
     )
@@ -358,11 +358,12 @@ if __name__ == '__main__':
     parser.add_argument('-n', '--events-to-inject', type=int,help='number of events to inject')
     parser.add_argument('-o', '--output-file', type=str,help='output filename without extension')
     parser.add_argument('-e', '--experiment', type=str, default='GenevaSurface', help='experiment name (GenevaLake or GenevaSurface)')
+    parser.add_argument('-x', '--xs-mode', type=str, default='CC', help='cross section mode (CC or NC)')
 
     args = parser.parse_args()
     if args.case=='neutrino':
         RunNeutrinoSimulation(args.prefix,args.generator,args.parent,args.primary,
-                              args.events_to_inject,args.output_file,args.experiment)
+                              args.events_to_inject,args.output_file,args.experiment,args.xs_mode)
     elif args.case=='hnl':
         RunLHCbHNLSimulation(args.prefix,args.generator,args.parent,
                              args.events_to_inject,args.output_file)

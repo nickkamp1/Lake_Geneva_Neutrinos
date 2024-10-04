@@ -126,6 +126,8 @@ def plot_tangent_elevation(fig,circle,x,crossing,limit=10000,Lake_Crossings=None
     FASER_envelope = np.abs(0.125/480*trange)
     earth_points = np.array([xyz_to_lat_long(*p) for p in points.transpose()])
     elev_range = earth_points[:,2] - Lake_geneva_elevation
+    lake_crossings = earth_points[np.where(np.abs(elev_range)<0.5)]
+    print("Lake Crossing lat long points:\n",lake_crossings)
     #print(elev_range)
     
     pipe_detector_radius = 5
