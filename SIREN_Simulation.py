@@ -32,13 +32,21 @@ def RunNeutrinoSimulation(prefix,generator,parent,primary,
 
     # Cross Section Model
     target_type = siren.dataclasses.Particle.ParticleType.Nucleon
-
-    DIS_xs = siren.interactions.DISFromSpline(
-        os.path.join(xsfiledir, "dsdxdy_nu_%s_iso.fits"%xs_mode),
-        os.path.join(xsfiledir, "sigma_nu_%s_iso.fits"%xs_mode),
-        [primary_type],
-        [target_type], "m"
-    )
+    
+    if primary>0:
+        DIS_xs = siren.interactions.DISFromSpline(
+            os.path.join(xsfiledir, "dsdxdy_nu_%s_iso.fits"%xs_mode),
+            os.path.join(xsfiledir, "sigma_nu_%s_iso.fits"%xs_mode),
+            [primary_type],
+            [target_type], "m"
+        )
+    else:
+        DIS_xs = siren.interactions.DISFromSpline(
+            os.path.join(xsfiledir, "dsdxdy_nubar_%s_iso.fits"%xs_mode),
+            os.path.join(xsfiledir, "sigma_nubar_%s_iso.fits"%xs_mode),
+            [primary_type],
+            [target_type], "m"
+        )
 
     primary_xs = siren.interactions.InteractionCollection(primary_type, [DIS_xs])
     controller.SetInteractions(primary_xs)
