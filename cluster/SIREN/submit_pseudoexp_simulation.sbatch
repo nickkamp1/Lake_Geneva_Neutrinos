@@ -2,7 +2,7 @@
 #SBATCH -J geneva_simulation
 #SBATCH -c 16 # Number of cores
 #SBATCH -p shared
-#SBATCH --mem 60000
+#SBATCH --mem 100000
 #SBATCH -t 0-00:30:00 # Maximum execution time (D-HH:MM:SS)
 #SBATCH -o /n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/Lake_Geneva_Neutrinos/cluster/SIREN/logging/output/geneva_pseudoexp_sim_%A_%a.out # Standard output
 #SBATCH -e /n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/Lake_Geneva_Neutrinos/cluster/SIREN/logging/error/geneva_pseudoexp_sim_%A_%a.err # Standard error

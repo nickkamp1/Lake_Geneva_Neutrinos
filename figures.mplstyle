@@ -11,5 +11,6 @@ ytick.labelsize : 16
 
 legend.fontsize: 16
 legend.title_fontsize: 14
+legend.frameon: False
 
 image.cmap: BuPu

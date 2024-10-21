@@ -28,25 +28,41 @@ def RunNeutrinoSimulation(prefix,generator,parent,primary,
 
     cross_section_model = "CSMSDISSplines"
 
-    xsfiledir = siren.utilities.get_cross_section_model_path(cross_section_model)
+    #xsfiledir = siren.utilities.get_cross_section_model_path(cross_section_model)
+    xsfiledir = "/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/pweigel/cross_sections/20241017"
 
     # Cross Section Model
     target_type = siren.dataclasses.Particle.ParticleType.Nucleon
     
     if primary>0:
-        DIS_xs = siren.interactions.DISFromSpline(
-            os.path.join(xsfiledir, "dsdxdy_nu_%s_iso.fits"%xs_mode),
-            os.path.join(xsfiledir, "sigma_nu_%s_iso.fits"%xs_mode),
-            [primary_type],
-            [target_type], "m"
-        )
+        nutype = "neutrino"
     else:
-        DIS_xs = siren.interactions.DISFromSpline(
-            os.path.join(xsfiledir, "dsdxdy_nubar_%s_iso.fits"%xs_mode),
-            os.path.join(xsfiledir, "sigma_nubar_%s_iso.fits"%xs_mode),
-            [primary_type],
-            [target_type], "m"
-        )
+        nutype = "antineutrino"
+    
+    if primary in [12,-12,14,-14]:
+        nuflavor = "muon" # nueCC and numuCC cross sections are very similar in this energy range
+    elif primary in [16,-16]:
+        nuflavor = "tau"
+        
+    if xs_mode =="CC":
+        minQ2 = 0.01
+    elif xs_mode=="NC":
+        minQ2 = 1
+        
+    # DIS_xs = siren.interactions.DISFromSpline(
+    #     os.path.join(xsfiledir, "dsdxdy_%s_%s_iso.fits"%(nu_type,xs_mode)),
+    #     os.path.join(xsfiledir, "sigma_%s_%s_iso.fits"%(nu_type,xs_mode)),
+    #     [primary_type],
+    #     [target_type], "m"
+    # )
+    DIS_xs = siren.interactions.DISFromSpline(
+        os.path.join(xsfiledir, "wcg24b_dsdxdy_%s_%s_%s_isoscalar.fits"%(xs_mode,nuflavor,nutype)),
+        os.path.join(xsfiledir, "wcg24b_sigma_%s_%s_%s_isoscalar.fits"%(xs_mode,nuflavor,nutype)),
+        1,siren.utilities.Constants.isoscalarMass,minQ2,
+        [primary_type],
+        [target_type], "cm"
+    )
+
 
     primary_xs = siren.interactions.InteractionCollection(primary_type, [DIS_xs])
     controller.SetInteractions(primary_xs)

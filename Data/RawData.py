@@ -49,14 +49,14 @@ LHC_elevation = {
 }
 
 LHC_elevation_official = {
-    'ATLAS':409.004,
+    'ATLAS':359.065,#409.004,
     'ALICE':None,
     'Point3':None,
     'Point4':None,
-    'CMS':470.307,
+    'CMS':420.137,#470.307,
     'Point6':None,
     'Point7':None,
-    'LHCb':381.112
+    'LHCb':331.217,#381.112
 }
 
 LHC_crossing_angles = {

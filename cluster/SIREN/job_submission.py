@@ -5,10 +5,10 @@ light_generators = ["EPOSLHC","DPMJET",
                     "SIBYLL","QGSJET","PYTHIA8"]
 charm_generators = ["BKSS","BKRS",
                     "SIBYLL","BDGJKR","MS"]
-XSMode="NC"
-N = int(1e6)
+XSMode="CC"
+N = int(1e7)
 SIREN_dir = "/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/Lake_Geneva_Neutrinos/Data/SIREN"
-experiment="UNDINE_CMS_East"
+experiment="SINE_CMS_West"
 primaries = [12,-12,
              14,-14,
              16,-16]

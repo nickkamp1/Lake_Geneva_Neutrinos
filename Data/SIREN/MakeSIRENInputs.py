@@ -90,7 +90,7 @@ surface_exits = {"LHCb_South":np.array([minsec_to_dec(46,7,6.6649),minsec_to_dec
                  "ATLAS_West":np.array([minsec_to_dec(46,16,56.7102),minsec_to_dec(5,42,48.0509),748.53]),
                  "ATLAS_East":np.array([minsec_to_dec(45,59,59.5943),minsec_to_dec(8,10,8.1070),717.94])}
 
-lake_intersections = {"LHCb_North":[25960.99,52669.70], # calculated from official LHC coordinates
+lake_intersections = {"LHCb_North":[25960.762,52669.495], # calculated from official LHC coordinates
                       "CMS_East":[7503.75,11905.95] # calculated from tangents to the LHC circle
                       }
 
