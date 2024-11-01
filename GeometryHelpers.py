@@ -116,7 +116,8 @@ def plot_tangent_line(circle,x,crossing,limit=10000,Lake_Crossings=None,label=No
 def plot_tangent_elevation(fig,circle,x,crossing,limit=10000,
                            Lake_Crossings=None,IPlabel=None,color="black",
                            pipe_position=10000,panel_position=18210.36,
-                           flip=False,y0=Lake_geneva_elevation,
+                           flip=False,
+                           yIP=Lake_geneva_elevation,
                            lake_depths=[50,82],
                            beam_surface_exit_elevation=Lake_geneva_elevation,
                            beam_surface_exit_distance=None,
@@ -154,7 +155,8 @@ def plot_tangent_elevation(fig,circle,x,crossing,limit=10000,
 
     # Plot lake crossings:
     X = np.linspace(trange[0],trange[-1],2)
-    plt.fill_between(X,np.zeros_like(X),np.max(elev_range),color="lightskyblue",alpha=0.2)
+    plt.fill_between(X,-1e5*np.ones_like(X),np.max(elev_range),color="lightskyblue",alpha=0.1)
+    plt.fill_between(X,-200 * np.ones_like(X),np.zeros_like(X),color=(0,1,0,0.2),label='Land')
     pairs  = [[Lake_Crossings[i],Lake_Crossings[i+1]] for i in range(0,len(Lake_Crossings),2)]
     prev_edge = trange[0]
     for i,pair in enumerate(pairs):
@@ -167,19 +169,15 @@ def plot_tangent_elevation(fig,circle,x,crossing,limit=10000,
         print("Lake intersection distance %d: %2.2f, %2.2f"%(i,t_intersects[0],t_intersects[1]))
         X = np.linspace(t_intersects[0],t_intersects[1],2)
         plt.fill_between(X,-lake_depths[i] * np.ones_like(X), np.zeros_like(X),color='blue',alpha=0.4,label='Lake Geneva' if i==0 else None)
-        plt.fill_between(X,-200 * np.ones_like(X), -lake_depths[i]* np.zeros_like(X),color=(0,1,0,0.2),label='Land' if i==0 else None)
-        X = np.linspace(prev_edge,t_intersects[0],2)
-        plt.fill_between(X,-1e5 * np.ones_like(X), np.zeros_like(X),color=(0,1,0,0.2))
-        prev_edge = t_intersects[1]
-    if prev_edge < trange[-1]:
-        X = np.linspace(prev_edge,trange[-1],2)
-        plt.fill_between(X,-1e5 * np.ones_like(X), np.zeros_like(X),color=(0,1,0,0.2))
     
-    yIP = max(0,(y0-Lake_geneva_elevation))
-    plt.fill_between([0,first_intersection],np.zeros(2), [yIP,0], color=(0,1,0,0.2))
+    Xs_surface = [0,first_intersection]
+    yIP = max(0,(yIP-Lake_geneva_elevation))
+    Ys_surface = [yIP,0]
     if beam_surface_exit_distance:
         ySurface = max(0,(beam_surface_exit_elevation-Lake_geneva_elevation))
-        plt.fill_between([beam_surface_exit_distance,0],np.zeros(2), [ySurface,yIP], color=(0,1,0,0.2))
+        Xs_surface = [trange[0],beam_surface_exit_distance] + Xs_surface
+        Ys_surface = [ySurface,ySurface] + Ys_surface
+    plt.fill_between(Xs_surface,Ys_surface, color=(0,1,0,0.2))
     
 
     plt.scatter([0],[xyz_to_lat_long(*x)[2] - Lake_geneva_elevation],marker='*',s=500,color=color,edgecolors="black",label="%s Interaction Point"%IPlabel,zorder=10)
