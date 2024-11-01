@@ -5,10 +5,10 @@ light_generators = ["EPOSLHC","DPMJET",
                     "SIBYLL","QGSJET","PYTHIA8"]
 charm_generators = ["BKSS","BKRS",
                     "SIBYLL","BDGJKR","MS"]
-XSMode="CC"
-N = int(1e7)
+XSMode="NC"
+N = int(1e6)
 SIREN_dir = "/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/Lake_Geneva_Neutrinos/Data/SIREN"
-experiment="SINE_CMS_West"
+experiment="SINE_LHCb_North"
 primaries = [12,-12,
              14,-14,
              16,-16]
@@ -23,13 +23,13 @@ for primary in primaries:
 
         # light simulation
         if primary not in [16,-16]:
-            output = "%s/Output/%s/LHC13_%s_light_%s_%s"%(SIREN_dir,experiment,gen_l,primary,XSMode)
+            output = "%s/Output/%s/CSMS_LHC13_%s_light_%s_%s"%(SIREN_dir,experiment,gen_l,primary,XSMode)
             cmd = "sbatch --export=PRIMARY=%s,GEN=%s,MESON=light,N=%s,OUTPUT=%s,EXPERIMENT=%s,XSMode=%s submit_simulation.sbatch"%(primary,gen_l,N,output,experiment,XSMode)
             print(cmd)
             os.system(cmd)
 
         # charm simulation
-        output = "%s/Output/%s/LHC13_%s_charm_%s_%s"%(SIREN_dir,experiment,gen_c,primary,XSMode)
+        output = "%s/Output/%s/CSMS_LHC13_%s_charm_%s_%s"%(SIREN_dir,experiment,gen_c,primary,XSMode)
         cmd = "sbatch --export=PRIMARY=%s,GEN=%s,MESON=charm,N=%s,OUTPUT=%s,EXPERIMENT=%s,XSMode=%s submit_simulation.sbatch"%(primary,gen_c,N,output,experiment,XSMode)
         print(cmd)
         os.system(cmd)

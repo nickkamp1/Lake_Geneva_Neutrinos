@@ -113,7 +113,14 @@ def plot_tangent_line(circle,x,crossing,limit=10000,Lake_Crossings=None,label=No
     axs[1].set_ylabel('Longitude [deg]')
     axs[2].set_ylabel('Elevation w.r.t. Lake [m]')
 
-def plot_tangent_elevation(fig,circle,x,crossing,limit=10000,Lake_Crossings=None,IPlabel=None,color="black",pipe_position=10000,panel_position=18210.36,flip=False,y0=Lake_geneva_elevation):
+def plot_tangent_elevation(fig,circle,x,crossing,limit=10000,
+                           Lake_Crossings=None,IPlabel=None,color="black",
+                           pipe_position=10000,panel_position=18210.36,
+                           flip=False,y0=Lake_geneva_elevation,
+                           lake_depths=[50,82],
+                           beam_surface_exit_elevation=Lake_geneva_elevation,
+                           beam_surface_exit_distance=None,
+                           ):
 
     dir0,dir1,dir2 = circle.tangent_line(x,crossing)
     if(type(limit)==list):
@@ -138,11 +145,11 @@ def plot_tangent_elevation(fig,circle,x,crossing,limit=10000,Lake_Crossings=None
     # plt.plot(trange[pipe_detector_mask],elev_range[pipe_detector_mask] - pipe_detector_radius,color="black",lw=3)
     # plt.plot(trange[pipe_detector_mask],elev_range[pipe_detector_mask] + pipe_detector_radius,color="black",lw=3)
 
-    plt.plot(pipe_position*np.ones(2),[elev_range[pipe_idx]-pipe_detector_radius,
-                                       elev_range[pipe_idx]+pipe_detector_radius],color="black",label="Lake Detector",lw=3)
+    # plt.plot(pipe_position*np.ones(2),[elev_range[pipe_idx]-pipe_detector_radius,
+    #                                    elev_range[pipe_idx]+pipe_detector_radius],color="black",label="Lake Detector",lw=3)
 
     panel_detector_radius = 10
-    plt.plot(panel_position*np.ones(2),[-panel_detector_radius,panel_detector_radius],color="grey",label="Surface Detector",lw=3)
+    #plt.plot(panel_position*np.ones(2),[-panel_detector_radius,panel_detector_radius],color="grey",label="Surface Detector",lw=3)
     
 
     # Plot lake crossings:
@@ -156,20 +163,23 @@ def plot_tangent_elevation(fig,circle,x,crossing,limit=10000,Lake_Crossings=None
         
         t_intersects = (trange[np.argmin(diffs[0])],
                         trange[np.argmin(diffs[1])])
+        if i==0: first_intersection = t_intersects[0]
         print("Lake intersection distance %d: %2.2f, %2.2f"%(i,t_intersects[0],t_intersects[1]))
         X = np.linspace(t_intersects[0],t_intersects[1],2)
-        plt.fill_between(X,-200 * np.ones_like(X), np.zeros_like(X),color='blue',alpha=0.4,label='Lake Geneva' if i==0 else None)
+        plt.fill_between(X,-lake_depths[i] * np.ones_like(X), np.zeros_like(X),color='blue',alpha=0.4,label='Lake Geneva' if i==0 else None)
+        plt.fill_between(X,-200 * np.ones_like(X), -lake_depths[i]* np.zeros_like(X),color=(0,1,0,0.2),label='Land' if i==0 else None)
         X = np.linspace(prev_edge,t_intersects[0],2)
-        if i==0:
-            y = max(0,(y0-Lake_geneva_elevation)*(1 - X[0]/X[1]))
-            print(y)
-            plt.fill_between(X,-1e5 * np.ones_like(X), [max(0,y),0], color=(0,1,0,0.2),label='Land')
-        else:
-            plt.fill_between(X,-1e5 * np.ones_like(X), np.zeros_like(X),color=(0,1,0,0.2))
+        plt.fill_between(X,-1e5 * np.ones_like(X), np.zeros_like(X),color=(0,1,0,0.2))
         prev_edge = t_intersects[1]
     if prev_edge < trange[-1]:
         X = np.linspace(prev_edge,trange[-1],2)
         plt.fill_between(X,-1e5 * np.ones_like(X), np.zeros_like(X),color=(0,1,0,0.2))
+    
+    yIP = max(0,(y0-Lake_geneva_elevation))
+    plt.fill_between([0,first_intersection],np.zeros(2), [yIP,0], color=(0,1,0,0.2))
+    if beam_surface_exit_distance:
+        ySurface = max(0,(beam_surface_exit_elevation-Lake_geneva_elevation))
+        plt.fill_between([beam_surface_exit_distance,0],np.zeros(2), [ySurface,yIP], color=(0,1,0,0.2))
     
 
     plt.scatter([0],[xyz_to_lat_long(*x)[2] - Lake_geneva_elevation],marker='*',s=500,color=color,edgecolors="black",label="%s Interaction Point"%IPlabel,zorder=10)

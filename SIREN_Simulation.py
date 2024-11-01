@@ -35,9 +35,11 @@ def RunNeutrinoSimulation(prefix,generator,parent,primary,
     target_type = siren.dataclasses.Particle.ParticleType.Nucleon
     
     if primary>0:
-        nutype = "neutrino"
+        #nutype = "neutrino"
+        nutype = "nu"
     else:
-        nutype = "antineutrino"
+        #nutype = "antineutrino"
+        nutype = "nubar"
     
     if primary in [12,-12,14,-14]:
         nuflavor = "muon" # nueCC and numuCC cross sections are very similar in this energy range
@@ -49,19 +51,19 @@ def RunNeutrinoSimulation(prefix,generator,parent,primary,
     elif xs_mode=="NC":
         minQ2 = 1
         
-    # DIS_xs = siren.interactions.DISFromSpline(
-    #     os.path.join(xsfiledir, "dsdxdy_%s_%s_iso.fits"%(nu_type,xs_mode)),
-    #     os.path.join(xsfiledir, "sigma_%s_%s_iso.fits"%(nu_type,xs_mode)),
-    #     [primary_type],
-    #     [target_type], "m"
-    # )
     DIS_xs = siren.interactions.DISFromSpline(
-        os.path.join(xsfiledir, "wcg24b_dsdxdy_%s_%s_%s_isoscalar.fits"%(xs_mode,nuflavor,nutype)),
-        os.path.join(xsfiledir, "wcg24b_sigma_%s_%s_%s_isoscalar.fits"%(xs_mode,nuflavor,nutype)),
-        1,siren.utilities.Constants.isoscalarMass,minQ2,
+        os.path.join(xsfiledir, "dsdxdy_%s_%s_iso.fits"%(nu_type,xs_mode)),
+        os.path.join(xsfiledir, "sigma_%s_%s_iso.fits"%(nu_type,xs_mode)),
         [primary_type],
-        [target_type], "cm"
+        [target_type], "m"
     )
+    # DIS_xs = siren.interactions.DISFromSpline(
+    #     os.path.join(xsfiledir, "wcg24b_dsdxdy_%s_%s_%s_isoscalar.fits"%(xs_mode,nuflavor,nutype)),
+    #     os.path.join(xsfiledir, "wcg24b_sigma_%s_%s_%s_isoscalar.fits"%(xs_mode,nuflavor,nutype)),
+    #     1,siren.utilities.Constants.isoscalarMass,minQ2,
+    #     [primary_type],
+    #     [target_type], "cm"
+    # )
 
 
     primary_xs = siren.interactions.InteractionCollection(primary_type, [DIS_xs])
