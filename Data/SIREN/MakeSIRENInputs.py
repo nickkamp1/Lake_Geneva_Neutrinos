@@ -156,12 +156,12 @@ for IP,lake_distances in lake_intersections.items():
     surface_exit_angle = np.pi/2 - np.arccos(np.dot(beam_exit_dir,surface_normal_dir))
 
     lake_intersection_distance_1,lake_intersection_distance_2 = lake_distances
-    detector_distance = (lake_intersection_distance_1 + lake_intersection_distance_2)/2
+    detector_distance = lake_intersection_distance_1 + 0.1*(lake_intersection_distance_2 - lake_intersection_distance_1)
     lake_z_1 = lake_intersection_distance_1*np.cos(surface_exit_angle)
     lake_z_2 = lake_intersection_distance_2*np.cos(surface_exit_angle)
     lake_length = lake_z_2 - lake_z_1
     lake_z = (lake_z_1 + lake_z_2)/2
-    detector_z = lake_z
+    detector_z = detector_distance * np.cos(surface_exit_angle)
     detector_depth = np.sin(surface_exit_angle) * (detector_distance - surface_exit_distance)
 
     UNDINE_outfile_name = "Geometry/UNDINE_%s.dat"%IP
