@@ -9,6 +9,7 @@ XSMode="NC"
 N = int(1e6)
 SIREN_dir = "/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/Lake_Geneva_Neutrinos/Data/SIREN"
 experiment="UNDINE_LHCb_North"
+#experiment="SINE_CMS_West"
 primaries = [12,-12,
              14,-14,
              16,-16]

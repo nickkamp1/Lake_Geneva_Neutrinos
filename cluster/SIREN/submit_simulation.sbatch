@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -J geneva_simulation
 #SBATCH -c 8 # Number of cores
-#SBATCH -p shared
+#SBATCH -p shared,sapphire
 #SBATCH --mem 60000
 #SBATCH -t 0-02:00:00 # Maximum execution time (D-HH:MM:SS)
 #SBATCH -o /n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/Lake_Geneva_Neutrinos/cluster/SIREN/logging/output/geneva_sim_%A_%a.out # Standard output
