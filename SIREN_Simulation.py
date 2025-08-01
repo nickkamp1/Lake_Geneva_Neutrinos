@@ -33,7 +33,8 @@ def RunNeutrinoSimulation(prefix,generator,parent,primary,
     cross_section_model = "CSMSDISSplines"
 
     #xsfiledir = siren.utilities.get_cross_section_model_path(cross_section_model)
-    xsfiledir = "/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/pweigel/cross_sections/20241017"
+    #xsfiledir = "/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/pweigel/cross_sections/20241017"
+    xsfiledir = "/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/pweigel/cross_sections/20241112" # fixed x and y orientation
 
     # Cross Section Model
     target_type = siren.dataclasses.Particle.ParticleType.Nucleon
@@ -189,7 +190,7 @@ def RunNeutrinoSimulation(prefix,generator,parent,primary,
 
 
         ak.to_parquet(data[data["hit_mask"]==1],"%s.parquet"%outfile)
-        
+
 
 def RunHNLSimulation(prefix,generator,parent,primary,
                      events_to_inject,outfile,
@@ -228,7 +229,7 @@ def RunHNLSimulation(prefix,generator,parent,primary,
 
     DIS_xs = siren.interactions.HNLDISFromSpline(
         os.path.join(xsfiledir, "M_0000000MeV/dsdxdy-%s-N-nc-GRV98lo_patched_central.fits"%nutype),
-        os.path.join(xsfiledir, "M_%sMeV/sigma-%s-N-nc-GRV98lo_patched_central.fits"%(m4,nutype)),
+        os.path.join(xsfiledir, "M_000%sMeV/sigma-%s-N-nc-GRV98lo_patched_central.fits"%(m4,nutype)),
         float(m4)*1e-3,
         [Ue4,Umu4,Utau4],
         siren.utilities.Constants.isoscalarMass,
@@ -258,7 +259,7 @@ def RunHNLSimulation(prefix,generator,parent,primary,
     position_distribution = siren.distributions.PrimaryBoundedVertexDistribution(fid_vol)
     primary_injection_distributions["position"] = position_distribution
 
-    secondary_position_distribution = siren.distributions.SecondaryBoundedVertexDistribution(fid_vol)
+    #secondary_position_distribution = siren.distributions.SecondaryBoundedVertexDistribution(fid_vol)
 
     # SetProcesses
     controller.SetProcesses(
@@ -267,51 +268,21 @@ def RunHNLSimulation(prefix,generator,parent,primary,
     )
 
     # Decay Model
-    two_body_decay = siren.interactions.HNLTwoBodyDecay(float(m4)*1e-3, [Ue4, Umu4, Utau4], siren.interactions.HNLTwoBodyDecay.ChiralNature.Majorana)
-    Decay_interaction_collection = siren.interactions.InteractionCollection(hnl_type, [two_body_decay])
+    hnl_decay = siren.interactions.HNLDecay(float(m4)*1e-3, [Ue4, Umu4, Utau4], siren.interactions.HNLDecay.ChiralNature.Majorana)
+    Decay_interaction_collection = siren.interactions.InteractionCollection(hnl_type, [hnl_decay])
 
     controller.SetInteractions(primary_interaction_collection=DIS_interaction_collection,)
-    controller.SetInteractions(secondary_interaction_collections=[Decay_interaction_collection], injection=False)
-
-    # if we are below the W mass, use DarkNews for dimuon decay
-    if float(m4)*1e-3 < siren.utilities.Constants.wMass:
-
-        # Define a DarkNews model
-        model_kwargs = {
-            "m4": float(m4)*1e-3,
-            "Ue4": Ue4,
-            "Umu4": Umu4,
-            "Utau4": Utau4,
-            "gD":0,
-            "epsilon":0,
-            "mzprime":0.1,
-            "noHC": True,
-            "HNLtype": "majorana",
-            "include_nelastic": True,
-            "decay_product":"mu+mu-"
-        }
-
-        xs_path = siren.utilities.get_cross_section_model_path(f"DarkNewsTables-v{siren.utilities.darknews_version()}", must_exist=False)
-
-        # Define DarkNews Model
-        table_dir = os.path.join(
-            xs_path,
-            "HNL_M%2.2e_e%2.2e_mu%2.2e_tau%2.2e"%(float(m4),Ue4,Umu4,Utau4),
-        )
-        controller.InputDarkNewsModel(primary_type, table_dir, upscattering=False, **model_kwargs)
+    controller.SetInteractions(secondary_interaction_collections=[Decay_interaction_collection])
 
     # Run generation and save events
     controller.Initialize()
 
-    for process in controller.secondary_injection_processes:
-        print(process.primary_type)
-        for interaction in process.interactions.GetDecays():
-            for signature in interaction.GetPossibleSignatures():
-                print(signature.secondary_types)
-
     def stop(datum, i):
         secondary_type = datum.record.signature.secondary_types[i]
-        return secondary_type != siren.dataclasses.Particle.ParticleType.N4
+        return (secondary_type != siren.dataclasses.Particle.ParticleType.N4 and
+                secondary_type != siren.dataclasses.Particle.ParticleType.WPlus and
+                secondary_type != siren.dataclasses.Particle.ParticleType.WMinus and
+                secondary_type != siren.dataclasses.Particle.ParticleType.Z0)
 
     controller.SetInjectorStoppingCondition(stop)
 
@@ -320,7 +291,7 @@ def RunHNLSimulation(prefix,generator,parent,primary,
                           save_int_probs=True,
                           save_int_params=True,
                           fill_tables_at_exit=False)
-    
+
     data = ak.from_parquet("%s.parquet"%outfile)
     weights = np.array(np.squeeze(data.wgt) * lumi * 1000 * np.prod(data.int_probs,axis=-1))
     weights *= num_input_events / events_to_inject # correct for sampled events
@@ -330,12 +301,18 @@ def RunHNLSimulation(prefix,generator,parent,primary,
         ak.to_parquet(data,"%s.parquet"%outfile)
     else:
         muon_flag = np.abs(data.secondary_types) == 13
+        n_muons = np.sum(muon_flag[:,-1],axis=-1)
+        print(n_muons)
         hnl_flag = np.abs(data.primary_type) == 5914
+        muon_momenta = data.secondary_momenta[muon_flag][:,-1]
 
-        mu_vertex = clean_array(data.vertex[hnl_flag])
-        muon_momenta = clean_array(data.secondary_momenta[muon_flag])
-        muon_momentum = np.linalg.norm(muon_momenta[:,:,1:],axis=-1)
-        mu_dir = muon_momenta[:,:,1:] / np.expand_dims(muon_momentum,-1)
+        decay_vertex = clean_array(data.vertex[hnl_flag])
+        print(type(muon_momenta))
+        muon_momentum = [[np.linalg.norm(x[1:]) for x in muon_list] for muon_list in muon_momenta]
+        print(muon_momentum)
+        mu_dir = muon_momenta[:,:,1:] / muon_momentum
+        print(list(mu_dir))
+        print(decay_vertex.shape, mu_dir.type)
 
         panels = {
             # 0:controller.detector_model.GetSector("prototype"),
@@ -370,9 +347,9 @@ def RunHNLSimulation(prefix,generator,parent,primary,
         panel_cdep = {i_muon:{ip:[] for ip in panels.keys()} for i_muon in range(2)}
         hit_mask = {i_muon:{ip:[] for ip in panels.keys()} for i_muon in range(2)}
         hit_mask_tot = {i_muon:[] for i_muon in range(2)}
-        for mvs,mds in zip(mu_vertex,mu_dir):
-            for i_muon,(mv,md) in enumerate(zip(mvs,mds)):
-                p_ints,p_dist,p_cdep = GetPanelIntersections(mv,md)
+        for dv,mds in zip(decay_vertex,mu_dir):
+            for i_muon,md in enumerate(mds):
+                p_ints,p_dist,p_cdep = GetPanelIntersections(dv,md)
                 hit = False
                 for panel in p_ints.keys():
                     panel_ints[i_muon][panel].append(p_ints[panel])
@@ -386,9 +363,11 @@ def RunHNLSimulation(prefix,generator,parent,primary,
                 hit_mask_tot[i_muon].append(hit)
 
         muon_depth = siren.distributions.LeptonDepthFunction()
-        
+
+        print(panel_ints)
         for i_muon in range(2):
-            for ik in panel_ints.keys():
+            for ik in panel_ints[i_muon].keys():
+                print(i_muon,ik)
                 data["muon%d_panel%d_int_locations"%(i_muon,ik)] = panel_ints[i_muon][ik]
                 data["muon%d_panel%d_int_distances"%(i_muon,ik)] = panel_dist[i_muon][ik]
                 data["muon%d_panel%d_int_coldepths"%(i_muon,ik)] = panel_cdep[i_muon][ik]
@@ -396,7 +375,7 @@ def RunHNLSimulation(prefix,generator,parent,primary,
 
             data["muon%d_hit_mask"%i_muon] = hit_mask_tot[i_muon]
 
-        
+
 
             data["muon%d_max_col_depth"%i_muon] = [muon_depth(siren.dataclasses.Particle.NuMu, muE) for muE in muon_momenta[:,i_muon,0]]
 
@@ -405,12 +384,12 @@ def RunHNLSimulation(prefix,generator,parent,primary,
                 data["panel%d_hit_mask_muon%d_survival"%(ip,i_muon)] = np.logical_and(data["muon%d_panel%d_hit_mask"%(i_muon,ip)],
                                                                            np.any(data["muon%d_panel%d_muon_survival"%(i_muon,ip)],axis=-1))
             data["hit_mask_muon%d_survival"%i_muon] = np.logical_or.reduce(tuple(data["panel%d_hit_mask_muon%d_survival"%(ip,i_muon)] for ip in panels.keys()))
-        
+
         data["hit_mask_dimuon_survival"] = np.logical_and(data["hit_mask_muon0_survival"],data["hit_mask_muon1_survival"])
 
 
         ak.to_parquet(data,"%s.parquet"%outfile)
-    
+
 
 
 if __name__ == '__main__':
