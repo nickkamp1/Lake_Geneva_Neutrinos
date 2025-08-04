@@ -299,6 +299,8 @@ def RunHNLSimulation(prefix,generator,parent,primary,
     weights *= num_input_events / events_to_inject # correct for sampled events
     data["weights"] = weights
 
+    print("Initial injection complete. Computing panel intersections...")
+
     if experiment_prefix=="UNDINE":
         ak.to_parquet(data,"%s.parquet"%outfile)
     else:
