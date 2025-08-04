@@ -227,9 +227,10 @@ def RunHNLSimulation(prefix,generator,parent,primary,
     # Cross Section Model
     target_type = siren.dataclasses.Particle.ParticleType.Nucleon
 
+    m4_str = m4_str = f"{int(m4):07d}"
     DIS_xs = siren.interactions.HNLDISFromSpline(
         os.path.join(xsfiledir, "M_0000000MeV/dsdxdy-%s-N-nc-GRV98lo_patched_central.fits"%nutype),
-        os.path.join(xsfiledir, "M_000%sMeV/sigma-%s-N-nc-GRV98lo_patched_central.fits"%(m4,nutype)),
+        os.path.join(xsfiledir, "M_%sMeV/sigma-%s-N-nc-GRV98lo_patched_central.fits"%(m4_str,nutype)),
         float(m4)*1e-3,
         [Ue4,Umu4,Utau4],
         siren.utilities.Constants.isoscalarMass,
@@ -280,6 +281,7 @@ def RunHNLSimulation(prefix,generator,parent,primary,
     def stop(datum, i):
         secondary_type = datum.record.signature.secondary_types[i]
         return (secondary_type != siren.dataclasses.Particle.ParticleType.N4 and
+                secondary_type != siren.dataclasses.Particle.ParticleType.N4Bar and
                 secondary_type != siren.dataclasses.Particle.ParticleType.WPlus and
                 secondary_type != siren.dataclasses.Particle.ParticleType.WMinus and
                 secondary_type != siren.dataclasses.Particle.ParticleType.Z0)
@@ -302,17 +304,12 @@ def RunHNLSimulation(prefix,generator,parent,primary,
     else:
         muon_flag = np.abs(data.secondary_types) == 13
         n_muons = np.sum(muon_flag[:,-1],axis=-1)
-        print(n_muons)
         hnl_flag = np.abs(data.primary_type) == 5914
         muon_momenta = data.secondary_momenta[muon_flag][:,-1]
 
         decay_vertex = clean_array(data.vertex[hnl_flag])
-        print(type(muon_momenta))
         muon_momentum = [[np.linalg.norm(x[1:]) for x in muon_list] for muon_list in muon_momenta]
-        print(muon_momentum)
         mu_dir = muon_momenta[:,:,1:] / muon_momentum
-        print(list(mu_dir))
-        print(decay_vertex.shape, mu_dir.type)
 
         panels = {
             # 0:controller.detector_model.GetSector("prototype"),
@@ -342,32 +339,30 @@ def RunHNLSimulation(prefix,generator,parent,primary,
                     panel_columndepths[ip].append(controller.detector_model.GetColumnDepthInCGS(_loc_detector,int_loc_dectector))
             return panel_intersections,panel_distances,panel_columndepths
 
-        panel_ints = {i_muon:{ip:[] for ip in panels.keys()} for i_muon in range(2)}
-        panel_dist = {i_muon:{ip:[] for ip in panels.keys()} for i_muon in range(2)}
-        panel_cdep = {i_muon:{ip:[] for ip in panels.keys()} for i_muon in range(2)}
-        hit_mask = {i_muon:{ip:[] for ip in panels.keys()} for i_muon in range(2)}
-        hit_mask_tot = {i_muon:[] for i_muon in range(2)}
-        for dv,mds in zip(decay_vertex,mu_dir):
+        panel_ints = {i_muon:{ip:[[] for _ in range(len(data))] for ip in panels.keys()} for i_muon in range(2)}
+        panel_dist = {i_muon:{ip:[[-1] for _ in range(len(data))] for ip in panels.keys()} for i_muon in range(2)}
+        panel_cdep = {i_muon:{ip:[[-1] for _ in range(len(data))] for ip in panels.keys()} for i_muon in range(2)}
+        hit_mask = {i_muon:{ip:[False for _ in range(len(data))] for ip in panels.keys()} for i_muon in range(2)}
+        hit_mask_tot = {i_muon:[False for _ in range(len(data))] for i_muon in range(2)}
+        for i_event,(dv,mds) in enumerate(zip(decay_vertex,mu_dir)):
             for i_muon,md in enumerate(mds):
                 p_ints,p_dist,p_cdep = GetPanelIntersections(dv,md)
                 hit = False
                 for panel in p_ints.keys():
-                    panel_ints[i_muon][panel].append(p_ints[panel])
-                    panel_dist[i_muon][panel].append(p_dist[panel])
-                    panel_cdep[i_muon][panel].append(p_cdep[panel])
+                    panel_ints[i_muon][panel][i_event] = (p_ints[panel])
+                    panel_dist[i_muon][panel][i_event] = (p_dist[panel])
+                    panel_cdep[i_muon][panel][i_event] = (p_cdep[panel])
                     if sum(np.array(p_dist[panel])>0)>0:
                         hit = True
-                        hit_mask[i_muon][panel].append(True)
-                    else: hit_mask[i_muon][panel].append(False)
+                        hit_mask[i_muon][panel][i_event] = (True)
+                    else: hit_mask[i_muon][panel][i_event] = (False)
 
-                hit_mask_tot[i_muon].append(hit)
+                hit_mask_tot[i_muon][i_event] = (hit)
 
         muon_depth = siren.distributions.LeptonDepthFunction()
 
-        print(panel_ints)
         for i_muon in range(2):
             for ik in panel_ints[i_muon].keys():
-                print(i_muon,ik)
                 data["muon%d_panel%d_int_locations"%(i_muon,ik)] = panel_ints[i_muon][ik]
                 data["muon%d_panel%d_int_distances"%(i_muon,ik)] = panel_dist[i_muon][ik]
                 data["muon%d_panel%d_int_coldepths"%(i_muon,ik)] = panel_cdep[i_muon][ik]
@@ -376,13 +371,13 @@ def RunHNLSimulation(prefix,generator,parent,primary,
             data["muon%d_hit_mask"%i_muon] = hit_mask_tot[i_muon]
 
 
-
-            data["muon%d_max_col_depth"%i_muon] = [muon_depth(siren.dataclasses.Particle.NuMu, muE) for muE in muon_momenta[:,i_muon,0]]
+            data["muon%d_max_col_depth"%i_muon] = [muon_depth(siren.dataclasses.Particle.NuMu, mu_mom[i_muon,0]) if len(mu_mom)>(i_muon) else -1 for mu_mom in muon_momenta]
 
             for ip in panels.keys():
                 data["panel%d_muon%d_survival"%(ip,i_muon)] = data["muon%d_panel%d_int_coldepths"%(i_muon,ip)] < data["muon%d_max_col_depth"%i_muon]
-                data["panel%d_hit_mask_muon%d_survival"%(ip,i_muon)] = np.logical_and(data["muon%d_panel%d_hit_mask"%(i_muon,ip)],
-                                                                           np.any(data["muon%d_panel%d_muon_survival"%(i_muon,ip)],axis=-1))
+                survival_any = ak.any(data["panel%d_muon%d_survival"%(ip,i_muon)], axis=-1)
+                hit_mask_arr = np.array(data["muon%d_panel%d_hit_mask"%(i_muon,ip)])
+                data["panel%d_hit_mask_muon%d_survival"%(ip,i_muon)] = np.logical_and(survival_any, hit_mask_arr)
             data["hit_mask_muon%d_survival"%i_muon] = np.logical_or.reduce(tuple(data["panel%d_hit_mask_muon%d_survival"%(ip,i_muon)] for ip in panels.keys()))
 
         data["hit_mask_dimuon_survival"] = np.logical_and(data["hit_mask_muon0_survival"],data["hit_mask_muon1_survival"])
