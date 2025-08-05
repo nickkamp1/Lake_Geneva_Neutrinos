@@ -42,8 +42,8 @@ if [ -z ${EXPERIMENT+x} ]; then
     EXPERIMENT="SINE_CMS_West"
 fi
 
-if [ -z ${M4+x} ]; then
-    M4="1000"
+if [ -z ${m4+x} ]; then
+    m4="1000"
 fi
 
 if [ -z ${Ue4+x} ]; then
@@ -58,6 +58,6 @@ if [ -z ${Ut4+x} ]; then
     Ut4="0"
 fi
 
-CMD="python /n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/Lake_Geneva_Neutrinos/SIREN_Simulation.py --case ${CASE} --primary ${PRIMARY} -p LHC13 -g ${GEN} -m ${MESON} -n ${N} -o ${OUTPUT} -e ${EXPERIMENT} -x ${XSMode} -m4 ${M4} -ue ${Ue4} -um ${Um4} -ut ${Ut4}"
+CMD="python /n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/Lake_Geneva_Neutrinos/SIREN_Simulation.py --case ${CASE} --primary ${PRIMARY} -p LHC13 -g ${GEN} -m ${MESON} -n ${N} -o ${OUTPUT} -e ${EXPERIMENT} -x ${XSMode} -m4 ${m4} -ue ${Ue4} -um ${Um4} -ut ${Ut4}"
 echo $CMD
 $CMD
