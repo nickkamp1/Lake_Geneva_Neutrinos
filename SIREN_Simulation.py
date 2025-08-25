@@ -249,11 +249,9 @@ def RunHNLSimulation(prefix,generator,parent,primary,
     siren_input_file = "%s/Input/%s_%s_%s_%d_%s.txt"%(SIREN_dir,prefix,generator,parent,primary,IP_tag)
     assert(os.path.isfile(siren_input_file))
 
-    with open(siren_input_file, "rb") as f:
-        num_input_events = sum(1 for _ in f) - 1
-
     primary_external_dist = siren.distributions.PrimaryExternalDistribution(siren_input_file,1.1*DIS_xs.InteractionThreshold(siren.dataclasses.InteractionRecord()))
     primary_injection_distributions["external"] = primary_external_dist
+    num_input_events = primary_external_dist.GetPhysicalNumEvents(); # number above energy threshold
 
 
     fid_vol = controller.GetFiducialVolume()
@@ -292,7 +290,8 @@ def RunHNLSimulation(prefix,generator,parent,primary,
     controller.SaveEvents(outfile,
                           save_int_probs=True,
                           save_int_params=True,
-                          fill_tables_at_exit=False)
+                          fill_tables_at_exit=False,
+                          hdf5=False, siren_events=False)
 
     data = ak.from_parquet("%s.parquet"%outfile)
     weights = np.array(np.squeeze(data.wgt) * lumi * 1000 * np.prod(data.int_probs,axis=-1))
@@ -385,7 +384,7 @@ def RunHNLSimulation(prefix,generator,parent,primary,
         data["hit_mask_dimuon_survival"] = np.logical_and(data["hit_mask_muon0_survival"],data["hit_mask_muon1_survival"])
 
 
-        ak.to_parquet(data,"%s.parquet"%outfile)
+        ak.to_parquet(data[data["muon0_hit_mask"]==1],"%s.parquet"%outfile) # save only events with at least one muon hitting a panel
 
 
 
