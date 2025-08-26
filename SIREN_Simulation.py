@@ -5,6 +5,8 @@ import argparse
 import numpy as np
 import awkward as ak
 
+from SIREN_SimulationHelpers import compute_HNL_time_delay
+
 # Remove empty sublists and dimensions from awkward arrays
 def clean_array(array):
     return np.array(np.squeeze(ak.Array([[sublist for sublist in inner_list if len(sublist) > 0] for inner_list in array])))
@@ -196,7 +198,7 @@ def RunHNLSimulation(prefix,generator,parent,primary,
                      events_to_inject,outfile,
                      experiment,
                      m4,Ue4,Umu4,Utau4,
-                     lumi=3000):
+                     lumi=3000,seed=42):
 
     if "SINE" in experiment:
         experiment_prefix = "SINE"
@@ -208,7 +210,7 @@ def RunHNLSimulation(prefix,generator,parent,primary,
     IP_tag = experiment.replace("%s_"%experiment_prefix,"")
 
     # Define the controller
-    controller = SIREN_Controller(events_to_inject, experiment)
+    controller = SIREN_Controller(events_to_inject, experiment, seed=seed)
 
     # Particle to inject
     primary_type = (siren.dataclasses.Particle.ParticleType)(primary)
@@ -252,10 +254,12 @@ def RunHNLSimulation(prefix,generator,parent,primary,
     primary_external_dist = siren.distributions.PrimaryExternalDistribution(siren_input_file,1.1*DIS_xs.InteractionThreshold(siren.dataclasses.InteractionRecord()))
     primary_injection_distributions["external"] = primary_external_dist
     num_input_events = primary_external_dist.GetPhysicalNumEvents(); # number above energy threshold
+    print("Number of input events above threshold: %d"%num_input_events)
 
 
-    fid_vol = controller.GetFiducialVolume()
-    position_distribution = siren.distributions.PrimaryBoundedVertexDistribution(fid_vol)
+    # fid_vol = controller.GetFiducialVolume()
+    max_length = 20000 # m
+    position_distribution = siren.distributions.PrimaryBoundedVertexDistribution(max_length)
     primary_injection_distributions["position"] = position_distribution
 
     #secondary_position_distribution = siren.distributions.SecondaryBoundedVertexDistribution(fid_vol)
@@ -298,11 +302,11 @@ def RunHNLSimulation(prefix,generator,parent,primary,
     weights *= num_input_events / events_to_inject # correct for sampled events
     data["weights"] = weights
 
-    print("Initial injection complete. Computing panel intersections...")
 
     if experiment_prefix=="UNDINE":
         ak.to_parquet(data,"%s.parquet"%outfile)
     else:
+        print("Initial injection complete. Computing panel intersections...")
         muon_flag = np.abs(data.secondary_types) == 13
         n_muons = np.sum(muon_flag[:,-1],axis=-1)
         hnl_flag = np.abs(data.primary_type) == 5914
@@ -382,9 +386,9 @@ def RunHNLSimulation(prefix,generator,parent,primary,
             data["hit_mask_muon%d_survival"%i_muon] = np.logical_or.reduce(tuple(data["panel%d_hit_mask_muon%d_survival"%(ip,i_muon)] for ip in panels.keys()))
 
         data["hit_mask_dimuon_survival"] = np.logical_and(data["hit_mask_muon0_survival"],data["hit_mask_muon1_survival"])
-
-
-        ak.to_parquet(data[data["muon0_hit_mask"]==1],"%s.parquet"%outfile) # save only events with at least one muon hitting a panel
+        abridged_data = data[data["hit_mask_dimuon_survival"]==1]
+        appended_data = compute_HNL_time_delay(abridged_data,float(m4)/1000.)
+        ak.to_parquet(appended_data,"%s.parquet"%outfile ) # save only events with at least one muon hitting a panel
 
 
 

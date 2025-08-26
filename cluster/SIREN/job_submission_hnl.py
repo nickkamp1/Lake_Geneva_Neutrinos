@@ -3,7 +3,7 @@ import numpy as np
 
 light_generator = "SIBYLL"
 charm_generator = "SIBYLL"
-N = int(1e5)
+N = int(1e6)
 SIREN_dir = "/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/Lake_Geneva_Neutrinos/Data/SIREN"
 experiment="SINE_CMS_West"
 primaries = [14,-14]
