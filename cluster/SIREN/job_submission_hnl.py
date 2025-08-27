@@ -11,7 +11,8 @@ n_grid_points = 20
 Urange = np.logspace(-3,-1,n_grid_points)
 mrange = ["0700","0800","0900",
           "1000","1500","2000","3000","4000","5000","6000","7000","8000","9000",
-          "10000","15000","20000","30000","40000","50000"]
+          "10000","15000","20000","30000","40000","50000",
+          "60000","70000"]
 
 out_dir = f"{SIREN_dir}/Output/{experiment}/HNLs"
 os.makedirs(out_dir, exist_ok=True)
@@ -42,7 +43,7 @@ for primary in primaries:
             tasks.append(f"{primary},{charm_generator},charm,{N},{output},{experiment},NC,{m},{Ustr}")
 
 # write parameter file
-params_path = os.path.join(out_dir, "hnl_params.csv")
+params_path = os.path.join(out_dir, "hnl_params_highMass.csv")
 with open(params_path, "w") as f:
     f.write("\n".join(tasks))
 print(f"Wrote {len(tasks)} tasks to {params_path}")
