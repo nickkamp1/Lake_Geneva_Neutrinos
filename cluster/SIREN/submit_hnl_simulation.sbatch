@@ -3,9 +3,8 @@
 #SBATCH -p serial_requeue,shared,sapphire,arguelles_delgado # Partition to submit to
 #SBATCH --output=/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/Lake_Geneva_Neutrinos/cluster/SIREN/logging/output/hnl_array_%A_%a.out
 #SBATCH --error=/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/Lake_Geneva_Neutrinos/cluster/SIREN/logging/error/hnl_array_%A_%a.err
-#SBATCH --time=00:30:00
+#SBATCH --time=01:30:00
 #SBATCH --mem=20000
-#SBATCH --cpus-per-task=1
 #SBATCH -c 16 # Number of cores
 
 source /n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/spack/share/spack/setup-env.sh
