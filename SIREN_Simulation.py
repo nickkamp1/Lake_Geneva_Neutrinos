@@ -379,14 +379,14 @@ def RunHNLSimulation(prefix,generator,parent,primary,
             data["muon%d_max_col_depth"%i_muon] = [muon_depth(siren.dataclasses.Particle.NuMu, mu_mom[i_muon,0]) if len(mu_mom)>(i_muon) else -1 for mu_mom in muon_momenta]
 
             for ip in panels.keys():
-                data["panel%d_muon%d_survival"%(ip,i_muon)] = data["muon%d_panel%d_int_coldepths"%(i_muon,ip)] < data["muon%d_max_col_depth"%i_muon]
-                survival_any = ak.any(data["panel%d_muon%d_survival"%(ip,i_muon)], axis=-1)
+                data["muon%d_panel%d_survival"%(i_muon,ip)] = data["muon%d_panel%d_int_coldepths"%(i_muon,ip)] < data["muon%d_max_col_depth"%i_muon]
+                survival_any = ak.any(data["muon%d_panel%d_survival"%(i_muon,ip)], axis=-1)
                 hit_mask_arr = np.array(data["muon%d_panel%d_hit_mask"%(i_muon,ip)])
-                data["panel%d_hit_mask_muon%d_survival"%(ip,i_muon)] = np.logical_and(survival_any, hit_mask_arr)
-            data["hit_mask_muon%d_survival"%i_muon] = np.logical_or.reduce(tuple(data["panel%d_hit_mask_muon%d_survival"%(ip,i_muon)] for ip in panels.keys()))
+                data["muon%d_panel%d_hit_mask_survival"%(i_muon,ip)] = np.logical_and(survival_any, hit_mask_arr)
+            data["muon%d_hit_mask_survival"%i_muon] = np.logical_or.reduce(tuple(data["muon%d_panel%d_hit_mask_survival"%(i_muon,ip)] for ip in panels.keys()))
 
-        data["hit_mask_dimuon_survival"] = np.logical_and(data["hit_mask_muon0_survival"],data["hit_mask_muon1_survival"])
-        abridged_data = data[data["hit_mask_dimuon_survival"]==1]
+        data["hit_mask_dimuon_survival"] = np.logical_and(data["muon0_hit_mask_survival"],data["muon1_hit_mask_survival"])
+        abridged_data = data[data["muon0_hit_mask_survival"]==1]
         appended_data = compute_HNL_time_delay(abridged_data,float(m4)/1000.)
         ak.to_parquet(appended_data,"%s.parquet"%outfile ) # save only events with at least one muon hitting a panel
 
