@@ -43,7 +43,7 @@ for primary in primaries:
             tasks.append(f"{primary},{charm_generator},charm,{N},{output},{experiment},NC,{m},{Ustr}")
 
 # write parameter file
-params_path = os.path.join(out_dir, "hnl_params_highMass.csv")
+params_path = os.path.join(out_dir, "hnl_params.csv")
 with open(params_path, "w") as f:
     f.write("\n".join(tasks))
 print(f"Wrote {len(tasks)} tasks to {params_path}")

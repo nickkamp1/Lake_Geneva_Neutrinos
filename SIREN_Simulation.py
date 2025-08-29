@@ -294,6 +294,7 @@ def RunHNLSimulation(prefix,generator,parent,primary,
     controller.SaveEvents(outfile,
                           save_int_probs=True,
                           save_int_params=True,
+                          save_survival_probs=True,
                           fill_tables_at_exit=False,
                           hdf5=False, siren_events=False)
 

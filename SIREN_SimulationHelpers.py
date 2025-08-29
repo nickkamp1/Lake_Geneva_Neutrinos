@@ -41,8 +41,6 @@ def compute_HNL_time_delay(siren_data,
             vertices = np.squeeze(siren_data["vertex"][mask])
             initial_pos = np.squeeze(siren_data["primary_initial_position"][mask])
             betas = np.squeeze(hnl_beta[mask])
-            print(vertices)
-            print(initial_pos)
 
             # fill new columns
             nu_time[mask] = np.linalg.norm(vertices[:,0] - initial_pos[:,0],axis=1)/c
