@@ -1,3 +1,4 @@
+from psutil import Process
 import siren
 from siren.SIREN_Controller import SIREN_Controller
 import os
@@ -5,7 +6,7 @@ import argparse
 import numpy as np
 import awkward as ak
 
-from SIREN_SimulationHelpers import compute_HNL_time_delay
+from SIREN_SimulationHelpers import *
 
 # Remove empty sublists and dimensions from awkward arrays
 def clean_array(array):
@@ -308,98 +309,107 @@ def RunHNLSimulation(prefix,generator,parent,primary,
         ak.to_parquet(data,"%s.parquet"%outfile)
     else:
         print("Initial injection complete. Computing panel intersections...")
-        muon_flag = np.abs(data.secondary_types) == 13
-        n_muons = np.sum(muon_flag[:,-1],axis=-1)
-        hnl_flag = np.abs(data.primary_type) == 5914
-        muon_momenta = data.secondary_momenta[muon_flag][:,-1]
-
-        decay_vertex = clean_array(data.vertex[hnl_flag])
-        muon_momentum = [[np.linalg.norm(x[1:]) for x in muon_list] for muon_list in muon_momenta]
-        mu_dir = muon_momenta[:,:,1:] / muon_momentum
-
-        panels = {
-            # 0:controller.detector_model.GetSector("prototype"),
-            1:controller.detector_model.GetSector("panel_1"),
-            2:controller.detector_model.GetSector("panel_2"),
-            3:controller.detector_model.GetSector("panel_3")
-            }
-
-        def GetPanelIntersections(location, direction):
-            _loc = siren.math.Vector3D(location)
-            _loc_detector = controller.detector_model.GeoPositionToDetPosition(siren.detector.GeometryPosition(_loc)).get()
-            _dir = siren.math.Vector3D(direction)
-            panel_intersections = {}
-            panel_distances = {}
-            panel_columndepths = {}
-
-            for ip,panel in panels.items():
-                panel_intersections[ip] = []
-                panel_distances[ip] = []
-                panel_columndepths[ip] = []
-                for intersection in panel.geo.Intersections(_loc,_dir):
-                    panel_intersections[ip].append([intersection.position.GetX(),
-                                                    intersection.position.GetY(),
-                                                    intersection.position.GetZ()])
-                    panel_distances[ip].append(intersection.distance)
-                    int_loc_dectector = controller.detector_model.GeoPositionToDetPosition(siren.detector.GeometryPosition(intersection.position)).get()
-                    panel_columndepths[ip].append(controller.detector_model.GetColumnDepthInCGS(_loc_detector,int_loc_dectector))
-            return panel_intersections,panel_distances,panel_columndepths
-
-        panel_ints = {i_muon:{ip:[[] for _ in range(len(data))] for ip in panels.keys()} for i_muon in range(2)}
-        panel_dist = {i_muon:{ip:[[-1] for _ in range(len(data))] for ip in panels.keys()} for i_muon in range(2)}
-        panel_cdep = {i_muon:{ip:[[-1] for _ in range(len(data))] for ip in panels.keys()} for i_muon in range(2)}
-        hit_mask = {i_muon:{ip:[False for _ in range(len(data))] for ip in panels.keys()} for i_muon in range(2)}
-        hit_mask_tot = {i_muon:[False for _ in range(len(data))] for i_muon in range(2)}
-        for i_event,(dv,mds) in enumerate(zip(decay_vertex,mu_dir)):
-            for i_muon,md in enumerate(mds):
-                p_ints,p_dist,p_cdep = GetPanelIntersections(dv,md)
-                hit = False
-                for panel in p_ints.keys():
-                    panel_ints[i_muon][panel][i_event] = (p_ints[panel])
-                    panel_dist[i_muon][panel][i_event] = (p_dist[panel])
-                    panel_cdep[i_muon][panel][i_event] = (p_cdep[panel])
-                    if sum(np.array(p_dist[panel])>0)>0:
-                        hit = True
-                        hit_mask[i_muon][panel][i_event] = (True)
-                    else: hit_mask[i_muon][panel][i_event] = (False)
-
-                hit_mask_tot[i_muon][i_event] = (hit)
-
-        muon_depth = siren.distributions.LeptonDepthFunction()
-
-        for i_muon in range(2):
-            for ik in panel_ints[i_muon].keys():
-                data["muon%d_panel%d_int_locations"%(i_muon,ik)] = panel_ints[i_muon][ik]
-                data["muon%d_panel%d_int_distances"%(i_muon,ik)] = panel_dist[i_muon][ik]
-                data["muon%d_panel%d_int_coldepths"%(i_muon,ik)] = panel_cdep[i_muon][ik]
-                data["muon%d_panel%d_hit_mask"%(i_muon,ik)] = hit_mask[i_muon][ik]
-
-            data["muon%d_hit_mask"%i_muon] = hit_mask_tot[i_muon]
-
-
-            data["muon%d_max_col_depth"%i_muon] = [muon_depth(siren.dataclasses.Particle.NuMu, mu_mom[i_muon,0]) if len(mu_mom)>(i_muon) else -1 for mu_mom in muon_momenta]
-
-            for ip in panels.keys():
-                data["muon%d_panel%d_survival"%(i_muon,ip)] = data["muon%d_panel%d_int_coldepths"%(i_muon,ip)] < data["muon%d_max_col_depth"%i_muon]
-                survival_any = ak.any(data["muon%d_panel%d_survival"%(i_muon,ip)], axis=-1)
-                hit_mask_arr = np.array(data["muon%d_panel%d_hit_mask"%(i_muon,ip)])
-                data["muon%d_panel%d_hit_mask_survival"%(i_muon,ip)] = np.logical_and(survival_any, hit_mask_arr)
-            data["muon%d_hit_mask_survival"%i_muon] = np.logical_or.reduce(tuple(data["muon%d_panel%d_hit_mask_survival"%(i_muon,ip)] for ip in panels.keys()))
-
-        data["hit_mask_dimuon_survival"] = np.logical_and(data["muon0_hit_mask_survival"],data["muon1_hit_mask_survival"])
-        abridged_data = data[data["muon0_hit_mask_survival"]==1]
+        abridged_data = ProcessMuonsSINE(data,controller)
         appended_data = compute_HNL_time_delay(abridged_data,float(m4)/1000.)
-        ak.to_parquet(appended_data,"%s.parquet"%outfile ) # save only events with at least one muon hitting a panel
+        ak.to_parquet(appended_data,"%s.parquet"%outfile)
+
+def RunMesonDecayHNLSimulation(events_to_inject,outfile,
+                               experiment,
+                               m4,Umu4,
+                               lumi=3000,seed=42):
+
+    if "SINE" in experiment:
+        experiment_prefix = "SINE"
+    elif "UNDINE" in experiment:
+        experiment_prefix = "UNDINE"
+    else:
+        print("Experiment %s not valid"%experiment)
+        return
+    IP_tag = experiment.replace("%s_"%experiment_prefix,"")
+
+    # Define the controller
+    controller = SIREN_Controller(events_to_inject, experiment, seed=seed)
+
+    # Particle to inject
+    primary_type = siren.dataclasses.Particle.ParticleType.N4
+
+    # Primary interaction
+    hnl_decay = siren.interactions.HNLDecay(float(m4)*1e-3, [0, Umu4, 0], siren.interactions.HNLDecay.ChiralNature.Majorana)
+    Decay_interaction_collection = siren.interactions.InteractionCollection(primary_type, [hnl_decay])
+
+    # Primary distributions
+    primary_injection_distributions = {}
+    primary_physical_distributions = {}
+
+    # Mass
+    mass_dist = siren.distributions.PrimaryMass(float(m4)*1e-3)
+    primary_injection_distributions["mass"] = mass_dist
+    primary_physical_distributions["mass"] = mass_dist
+
+    # External list
+    siren_input_file = "%s/Input/HNL-mu_m_%s_%s.txt"%(SIREN_dir,m4,IP_tag)
+    assert(os.path.isfile(siren_input_file))
+    primary_external_dist = siren.distributions.PrimaryExternalDistribution(siren_input_file)
+    primary_injection_distributions["external"] = primary_external_dist
+    num_input_events = primary_external_dist.GetPhysicalNumEvents(); # number above energy threshold
+
+
+    fid_vol = controller.GetFiducialVolume()
+    position_distribution = siren.distributions.PrimaryBoundedVertexDistribution(fid_vol)
+    primary_injection_distributions["position"] = position_distribution
+
+    # SetProcesses
+    controller.SetProcesses(
+        primary_type, primary_injection_distributions, primary_physical_distributions,
+        [primary_type], [[]], [[]]
+    )
+
+    controller.SetInteractions(primary_interaction_collection=Decay_interaction_collection,)
+
+    # Run generation and save events
+    controller.Initialize()
+
+    def stop(datum, i):
+        secondary_type = datum.record.signature.secondary_types[i]
+        return (secondary_type != siren.dataclasses.Particle.ParticleType.N4 and
+                secondary_type != siren.dataclasses.Particle.ParticleType.N4Bar and
+                secondary_type != siren.dataclasses.Particle.ParticleType.WPlus and
+                secondary_type != siren.dataclasses.Particle.ParticleType.WMinus and
+                secondary_type != siren.dataclasses.Particle.ParticleType.Z0)
+
+    controller.SetInjectorStoppingCondition(stop)
+
+    controller.GenerateEvents(fill_tables_at_exit=False)
+    controller.SaveEvents(outfile,
+                          save_int_probs=True,
+                          save_int_params=True,
+                          save_survival_probs=True,
+                          fill_tables_at_exit=False,
+                          hdf5=False, siren_events=False)
+
+    data = ak.from_parquet("%s.parquet"%outfile)
+    weights = np.array(np.squeeze(data.wgt) * lumi * 1000 * np.prod(data.int_probs,axis=-1) * np.prod(data.survival_probs,axis=-1))
+    weights *= num_input_events / events_to_inject # correct for sampled events
+    data["weights"] = weights
+
+
+    if experiment_prefix=="UNDINE":
+        ak.to_parquet(data,"%s.parquet"%outfile)
+    else:
+        print("Initial injection complete. Computing panel intersections...")
+        abridged_data = ProcessMuonsSINE(data,controller)
+        appended_data = compute_HNL_time_delay(abridged_data,float(m4)/1000.)
+        ak.to_parquet(appended_data,"%s.parquet"%outfile)
 
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--case', type=str, help='simulation case (neutrino/hnl)', default='neutrino')
+    parser.add_argument('--case', type=str, help='simulation case (neutrino/hnl/decay-hnl)', default='neutrino')
     parser.add_argument('--primary', type=int, help='simulation primary PDG code', default=14)
     parser.add_argument('-p','--prefix', type=str, default='LHC13', help='forward-nu-flux prefix')
-    parser.add_argument('-g','--generator', type=str, help='forward-nu-flux generator')
-    parser.add_argument('-m','--parent', type=str, help='forward-nu-flux parent meson (light or charm)')
+    parser.add_argument('-g','--generator', type=str, help='forward-nu-flux generator',default="SIBYLL")
+    parser.add_argument('-m','--parent', type=str, help='forward-nu-flux parent meson (light or charm)',default="light")
     parser.add_argument('-n', '--events-to-inject', type=int,help='number of events to inject')
     parser.add_argument('-o', '--output-file', type=str,help='output filename without extension')
     parser.add_argument('-e', '--experiment', type=str, default='GenevaSurface', help='experiment name (GenevaLake or GenevaSurface)')
@@ -417,5 +427,8 @@ if __name__ == '__main__':
         RunHNLSimulation(args.prefix,args.generator,args.parent,args.primary,
                          args.events_to_inject,args.output_file,args.experiment,
                          args.m4,args.Ue4,args.Umu4,args.Utau4)
+    elif args.case=='decay-hnl':
+        RunMesonDecayHNLSimulation(args.events_to_inject,args.output_file,args.experiment,
+                                   args.m4,args.Umu4)
     else:
         print("Case %s not recognized"%args.case)

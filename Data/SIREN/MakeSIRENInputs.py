@@ -11,8 +11,9 @@ detector_separation = 500 #m
 fiducial_length = 5000 # m
 
 forward_nu_flux_dir = "/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/forward-nu-flux-fit/"
+foresee_dir = "/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/FORESEE/"
 
-def PrepareSIRENInputFromIP(prefix,generator,parent,IPkeys,angles,surface_crossings):
+def PrepareSIRENInputFromIP(input_file,IPkeys,angles,surface_crossings):
 
     # compute different quantities related to each IP
     angles = {k:a for k,a in zip(IPkeys,angles)}
@@ -24,7 +25,7 @@ def PrepareSIRENInputFromIP(prefix,generator,parent,IPkeys,angles,surface_crossi
 
     # load data from the forward_nu_flux file
     keys = ['PDG','hPDG','x0','y0','z0','thx','thy','E','wgt']
-    data = np.loadtxt(forward_nu_flux_dir + '/files/' + prefix + '_' + generator + '_' + parent + '_0.txt')
+    data = np.loadtxt(input_file)
     data_dict = {}
     for k,col in zip(keys,data.T):
         data_dict[k] = col
@@ -177,6 +178,8 @@ for IP,lake_distances in lake_intersections.items():
 
 
 # Now let's make the SIREN input text files for each beamline
+
+# start with neutrino primaries
 forward_flux_files = {
     "LHC13":{
         "light":["DPMJET", "EPOSLHC", "PYTHIA8", "QGSJET", "SIBYLL"],
@@ -195,6 +198,7 @@ forward_flux_files = {
         "charm":["BKRS"]
     }
 }
+
 primaries = [12,-12,
              14,-14,
              16,-16]
@@ -206,7 +210,8 @@ for prefix,parent_dict in forward_flux_files.items():
             print(prefix,generator,parent)
             siren_input_file_prefix = "Input/%s_%s_%s"%(prefix,generator,parent)
             if os.path.isfile("%s_%s_%s.txt"%(siren_input_file_prefix,14,IPkeys[0])): continue
-            flux_dataframes = PrepareSIRENInputFromIP(prefix,generator,parent,IPkeys,angles,surface_crossings)
+            input_file = forward_nu_flux_dir + '/files/' + prefix + '_' + generator + '_' + parent + '_0.txt'
+            flux_dataframes = PrepareSIRENInputFromIP(input_file,IPkeys,angles,surface_crossings)
             for IPkey in IPkeys:
                 flux_data = flux_dataframes[IPkey]
                 for primary in primaries:
@@ -214,3 +219,21 @@ for prefix,parent_dict in forward_flux_files.items():
                     if not os.path.isfile(siren_input_file):
                         print("Preparing",siren_input_file)
                         flux_data.query("PDG==@primary").to_csv(siren_input_file,index=False)
+
+# HNL primaries from meson decay via FORESEE
+masses = [
+    #"0500","0600","0700","0800","0900","1000","1500","2000",
+    "3000","4000","5000","6000"
+          ]
+for mass in masses:
+    print("Preparing HNL-mu mass %s MeV"%mass)
+    siren_input_file_prefix = "Input/HNL-mu_m_%s"%mass
+    if os.path.isfile("%s_%s.txt"%(siren_input_file_prefix,IPkeys[0])): continue
+    input_file = foresee_dir + 'Models/HNL/HNL-mu/model/LLP_spectra/HNL_flux_m_%s.txt'%mass
+    flux_dataframes = PrepareSIRENInputFromIP(input_file,IPkeys,angles,surface_crossings)
+    for IPkey in IPkeys:
+        flux_data = flux_dataframes[IPkey]
+        siren_input_file = "%s_%s.txt"%(siren_input_file_prefix,IPkey)
+        if not os.path.isfile(siren_input_file):
+            print("Preparing",siren_input_file)
+            flux_data.to_csv(siren_input_file,index=False)
