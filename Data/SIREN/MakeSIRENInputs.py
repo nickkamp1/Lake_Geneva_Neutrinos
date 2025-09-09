@@ -31,6 +31,7 @@ def PrepareSIRENInputFromIP(input_file,IPkeys,angles,surface_crossings):
         data_dict[k] = col
     df = pd.DataFrame(data=data_dict)
     df.query("E>10",inplace=True)
+    df.query("abs(thx)<0.01 & abs(thy)<0.01",inplace=True)
     dfs = {}
 
     x0 = {k:[] for k in IPkeys}
@@ -40,7 +41,7 @@ def PrepareSIRENInputFromIP(input_file,IPkeys,angles,surface_crossings):
     py = {k:[] for k in IPkeys}
     pz = {k:[] for k in IPkeys}
 
-    for i,row in df[['x0','y0','z0','thx','thy','E']].iterrows():
+    for i,(_,row) in enumerate(df[['x0','y0','z0','thx','thy','E']].iterrows()):
         print("%d/%d"%(i,len(df)),end="\r")
         init_pos = siren.math.Vector3D([row.x0,row.y0,row.z0])
         dx = np.sin(row.thx)
@@ -222,18 +223,19 @@ for prefix,parent_dict in forward_flux_files.items():
 
 # HNL primaries from meson decay via FORESEE
 masses = [
-    #"0500","0600","0700","0800","0900","1000","1500","2000",
+    #"0500","0600","0700","0800","0900","1000",
+    "1500","2000",
     "3000","4000","5000","6000"
           ]
 for mass in masses:
     print("Preparing HNL-mu mass %s MeV"%mass)
     siren_input_file_prefix = "Input/HNL-mu_m_%s"%mass
-    if os.path.isfile("%s_%s.txt"%(siren_input_file_prefix,IPkeys[0])): continue
+    #if os.path.isfile("%s_%s.txt"%(siren_input_file_prefix,IPkeys[0])): continue
     input_file = foresee_dir + 'Models/HNL/HNL-mu/model/LLP_spectra/HNL_flux_m_%s.txt'%mass
     flux_dataframes = PrepareSIRENInputFromIP(input_file,IPkeys,angles,surface_crossings)
     for IPkey in IPkeys:
         flux_data = flux_dataframes[IPkey]
         siren_input_file = "%s_%s.txt"%(siren_input_file_prefix,IPkey)
-        if not os.path.isfile(siren_input_file):
-            print("Preparing",siren_input_file)
-            flux_data.to_csv(siren_input_file,index=False)
+        #if not os.path.isfile(siren_input_file):
+        print("Preparing",siren_input_file)
+        flux_data.to_csv(siren_input_file,index=False)

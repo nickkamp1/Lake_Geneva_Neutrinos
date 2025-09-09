@@ -300,7 +300,7 @@ def RunHNLSimulation(prefix,generator,parent,primary,
                           hdf5=False, siren_events=False)
 
     data = ak.from_parquet("%s.parquet"%outfile)
-    weights = np.array(np.squeeze(data.wgt) * lumi * 1000 * np.prod(data.int_probs,axis=-1))
+    weights = np.array(np.squeeze(data.wgt) * lumi * 1000 * np.prod(data.int_probs,axis=-1) * np.prod(data.survival_probs,axis=-1))
     weights *= num_input_events / events_to_inject # correct for sampled events
     data["weights"] = weights
 
@@ -309,7 +309,7 @@ def RunHNLSimulation(prefix,generator,parent,primary,
         ak.to_parquet(data,"%s.parquet"%outfile)
     else:
         print("Initial injection complete. Computing panel intersections...")
-        abridged_data = ProcessMuonsSINE(data,controller)
+        abridged_data = ProcessHNLMuonsSINE(data,controller)
         appended_data = compute_HNL_time_delay(abridged_data,float(m4)/1000.)
         ak.to_parquet(appended_data,"%s.parquet"%outfile)
 
@@ -351,7 +351,7 @@ def RunMesonDecayHNLSimulation(events_to_inject,outfile,
     assert(os.path.isfile(siren_input_file))
     primary_external_dist = siren.distributions.PrimaryExternalDistribution(siren_input_file)
     primary_injection_distributions["external"] = primary_external_dist
-    num_input_events = primary_external_dist.GetPhysicalNumEvents(); # number above energy threshold
+    num_input_events = primary_external_dist.GetPhysicalNumEvents() # number above energy threshold
 
 
     fid_vol = controller.GetFiducialVolume()
@@ -390,6 +390,7 @@ def RunMesonDecayHNLSimulation(events_to_inject,outfile,
     data = ak.from_parquet("%s.parquet"%outfile)
     weights = np.array(np.squeeze(data.wgt) * lumi * 1000 * np.prod(data.int_probs,axis=-1) * np.prod(data.survival_probs,axis=-1))
     weights *= num_input_events / events_to_inject # correct for sampled events
+    weights *= (Umu4*Umu4) # correct for mixing angle in production
     data["weights"] = weights
 
 
@@ -397,8 +398,8 @@ def RunMesonDecayHNLSimulation(events_to_inject,outfile,
         ak.to_parquet(data,"%s.parquet"%outfile)
     else:
         print("Initial injection complete. Computing panel intersections...")
-        abridged_data = ProcessMuonsSINE(data,controller)
-        appended_data = compute_HNL_time_delay(abridged_data,float(m4)/1000.)
+        abridged_data = ProcessHNLMuonsSINE(data,controller)
+        appended_data = compute_muon_time_delay(abridged_data)
         ak.to_parquet(appended_data,"%s.parquet"%outfile)
 
 
