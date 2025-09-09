@@ -30,7 +30,7 @@ print(f"Wrote {len(tasks)} tasks to {params_path}")
 # submit as a single array job
 array_size = len(tasks)
 max_concurrent = 500  # adjust concurrency (% limit) as desired
-sbatch_script = "submit_hnl_simulation.sbatch"  # template script to create/use
+sbatch_script = "submit_decay_hnl_simulation.sbatch"  # template script to create/use
 sbatch_cmd = f"sbatch --array=0-{array_size-1}%{max_concurrent} --export=PARAMS_FILE={params_path} {sbatch_script}"
 print("Run this to submit the array:")
 print(sbatch_cmd)
