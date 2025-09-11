@@ -1,0 +1,17 @@
+upscatter,1.0,hnl_job_lists/hnl_job_list_upscatter_1.txt
+upscatter,1.0,hnl_job_lists/hnl_job_list_upscatter_2.txt
+upscatter,1.0,hnl_job_lists/hnl_job_list_upscatter_3.txt
+upscatter,1.0,hnl_job_lists/hnl_job_list_upscatter_4.txt
+upscatter,1.0,hnl_job_lists/hnl_job_list_upscatter_5.txt
+mesondecay,0.1,hnl_job_lists/hnl_job_list_mesondecay_1.txt
+mesondecay,0.1,hnl_job_lists/hnl_job_list_mesondecay_2.txt
+mesondecay,0.1,hnl_job_lists/hnl_job_list_mesondecay_3.txt
+mesondecay,0.1,hnl_job_lists/hnl_job_list_mesondecay_4.txt
+mesondecay,0.1,hnl_job_lists/hnl_job_list_mesondecay_5.txt
+mesondecay,0.1,hnl_job_lists/hnl_job_list_mesondecay_6.txt
+mesondecay,0.1,hnl_job_lists/hnl_job_list_mesondecay_7.txt
+mesondecay,0.1,hnl_job_lists/hnl_job_list_mesondecay_8.txt
+mesondecay,0.1,hnl_job_lists/hnl_job_list_mesondecay_9.txt
+mesondecay,0.1,hnl_job_lists/hnl_job_list_mesondecay_10.txt
+mesondecay,0.1,hnl_job_lists/hnl_job_list_mesondecay_11.txt
+mesondecay,0.1,hnl_job_lists/hnl_job_list_mesondecay_12.txt

@@ -419,6 +419,7 @@ if __name__ == '__main__':
     parser.add_argument('-ue','--Ue4', type=float, default=0, help="HNL Ue4 mixing")
     parser.add_argument('-um','--Umu4', type=float, default=0, help="HNL Umu4 mixing")
     parser.add_argument('-ut','--Utau4', type=float, default=0, help="HNL Utau4 mixing")
+    parser.add_argument('-s','--seed', type=int, default=42, help="Random seed")
 
     args = parser.parse_args()
     if args.case=='neutrino':
@@ -427,9 +428,9 @@ if __name__ == '__main__':
     elif args.case=='hnl':
         RunHNLSimulation(args.prefix,args.generator,args.parent,args.primary,
                          args.events_to_inject,args.output_file,args.experiment,
-                         args.m4,args.Ue4,args.Umu4,args.Utau4)
+                         args.m4,args.Ue4,args.Umu4,args.Utau4,seed=args.seed)
     elif args.case=='decay-hnl':
         RunMesonDecayHNLSimulation(args.events_to_inject,args.output_file,args.experiment,
-                                   args.m4,args.Umu4)
+                                   args.m4,args.Umu4,seed=args.seed)
     else:
         print("Case %s not recognized"%args.case)

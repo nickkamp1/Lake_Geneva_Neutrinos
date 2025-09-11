@@ -3,8 +3,8 @@ Figures/
 Resources/
 cluster/homebrew/logging
 cluster/SIREN/logging
+cluster/SIREN/hnl_job_lists
 Data/
-.ipynb*
 Cosmics/*.txt
 Cosmics/EcoRunner
 Cosmics/MuonSim
