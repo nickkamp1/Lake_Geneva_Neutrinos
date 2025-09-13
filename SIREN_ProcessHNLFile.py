@@ -15,12 +15,13 @@ def main(m4, Um4, filelist, output_prefix,
     sim_dict = ak.Array([])
 
     for f in filelist:
+        time_delay_tag = "time_delay" if "MesonDecay" in f else "timing_difference"
         try:
             data = ak.from_parquet(f)
             data["max_deltaT"] = np.max(
-                np.array([data["muon0_panel1_time_delay"],
-                          data["muon0_panel2_time_delay"],
-                          data["muon0_panel3_time_delay"]]).T,
+                np.array([data["muon0_panel1_" + time_delay_tag],
+                          data["muon0_panel2_" + time_delay_tag],
+                          data["muon0_panel3_" + time_delay_tag]]).T,
                 axis=1
             )
             for panel in range(1, 4):

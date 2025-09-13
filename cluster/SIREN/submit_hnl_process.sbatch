@@ -3,7 +3,7 @@
 #SBATCH -p serial_requeue # Partition to submit to
 #SBATCH --output=/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/Lake_Geneva_Neutrinos/cluster/SIREN/logging/output/hnl_process_array_%A_%a.out
 #SBATCH --error=/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/Lake_Geneva_Neutrinos/cluster/SIREN/logging/error/hnl_process_array_%A_%a.err
-#SBATCH --time=00:15:00
+#SBATCH --time=00:20:00
 #SBATCH --mem=10000
 #SBATCH -c 16 # Number of cores
 
@@ -28,9 +28,8 @@ if [[ -z "$LINE" ]]; then
   exit 1
 fi
 
-IFS=, read -r OUTPUT_TAG WEIGHT_MOD PARAMS_FILE <<< "$LINE"
+IFS=, read -r OUTPUT_TAG PARAMS_FILE <<< "$LINE"
 export OUTPUT_TAG
-export WEIGHT_MOD
 export PARAMS_FILE
 
 
@@ -54,13 +53,14 @@ while IFS= read -r LINE || [[ -n "$LINE" ]]; do
   [[ -z "${LINE//[$'\t\r\n ']}" || "${LINE:0:1}" == "#" ]] && continue
 
   read -r -a TOKENS <<< "$LINE"
-  if (( ${#TOKENS[@]} < 3 )); then
+  if (( ${#TOKENS[@]} < 4 )); then
     echo "Malformed line in $PARAMS_FILE: '$LINE'"
     continue
   fi
   m4="${TOKENS[0]}"
   Um4="${TOKENS[1]}"
-  FILELIST=("${TOKENS[@]:2}")
+  WEIGHT_MOD="${TOKENS[2]}"
+  FILELIST=("${TOKENS[@]:3}")
 
   echo "  m4=$m4 Um4=$Um4 (files=${#FILELIST[@]})"
   # Optional: sanity-check files
