@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --job-name=hnl_up_sim
-#SBATCH -p serial_requeue,shared,sapphire,arguelles_delgado # Partition to submit to
+#SBATCH -p shared,sapphire,arguelles_delgado # Partition to submit to
 #SBATCH --output=/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/Lake_Geneva_Neutrinos/cluster/SIREN/logging/output/hnl_array_%A_%a.out
 #SBATCH --error=/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/Geneva/Lake_Geneva_Neutrinos/cluster/SIREN/logging/error/hnl_array_%A_%a.err
-#SBATCH --time=01:30:00
+#SBATCH --time=05:00:00
 #SBATCH --mem=20000
 #SBATCH -c 16 # Number of cores
 
@@ -16,10 +16,26 @@ if [[ -z "$PARAMS_FILE" ]]; then
   exit 1
 fi
 
-# read the corresponding line (SLURM_ARRAY_TASK_ID starts at 0)
-LINE=$(sed -n "$((SLURM_ARRAY_TASK_ID+1))p" "$PARAMS_FILE")
+# If INDEX_FILE is provided, try to map SLURM_ARRAY_TASK_ID -> line in file
+if [[ -n "$INDEX_FILE" ]]; then
+    if [[ -f "$INDEX_FILE" ]]; then
+        INDEX=$(sed -n "$((SLURM_ARRAY_TASK_ID+1))p" "$INDEX_FILE")
+        if [[ -z "$INDEX" ]]; then
+            echo "No line for task id $SLURM_ARRAY_TASK_ID in $INDEX_FILE"
+            exit 1
+        fi
+    else
+        echo "INDEX_FILE $INDEX_FILE does not exist, falling back to SLURM_ARRAY_TASK_ID"
+        INDEX=$SLURM_ARRAY_TASK_ID
+    fi
+else
+    INDEX=$SLURM_ARRAY_TASK_ID
+fi
+
+# read the corresponding line (INDEX starts at 0)
+LINE=$(sed -n "$((INDEX+1))p" "$PARAMS_FILE")
 if [[ -z "$LINE" ]]; then
-  echo "No line for task id $SLURM_ARRAY_TASK_ID"
+  echo "No line for task id $INDEX"
   exit 1
 fi
 

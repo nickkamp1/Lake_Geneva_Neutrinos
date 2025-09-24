@@ -223,7 +223,7 @@ def RunHNLSimulation(prefix,generator,parent,primary,
         hnl_type = siren.dataclasses.Particle.ParticleType.N4Bar
 
     # Now include DIS interaction
-    cross_section_model = "HNLDISSplines"
+    cross_section_model = "HNLDISSplines-v2.0"
 
     xsfiledir = siren.utilities.get_cross_section_model_path(cross_section_model)
 
@@ -291,13 +291,14 @@ def RunHNLSimulation(prefix,generator,parent,primary,
 
     controller.SetInjectorStoppingCondition(stop)
 
-    controller.GenerateEvents(fill_tables_at_exit=False)
+    controller.GenerateEvents(fill_tables_at_exit=False,verbose=True)
     controller.SaveEvents(outfile,
                           save_int_probs=True,
                           save_int_params=True,
                           save_survival_probs=True,
                           fill_tables_at_exit=False,
-                          hdf5=False, siren_events=False)
+                          hdf5=False, siren_events=False,
+                          verbose=True)
 
     data = ak.from_parquet("%s.parquet"%outfile)
     weights = np.array(np.squeeze(data.wgt) * lumi * 1000 * np.prod(data.int_probs,axis=-1) * np.prod(data.survival_probs,axis=-1))

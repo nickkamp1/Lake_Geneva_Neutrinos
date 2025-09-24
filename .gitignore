@@ -3,7 +3,7 @@ Figures/
 Resources/
 cluster/homebrew/logging
 cluster/SIREN/logging
-cluster/SIREN/hnl_job_lists
+cluster/SIREN/hnl_processing_job_lists
 Data/
 Cosmics/*.txt
 Cosmics/EcoRunner
